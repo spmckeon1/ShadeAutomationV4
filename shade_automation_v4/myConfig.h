@@ -1,94 +1,139 @@
 #ifndef MY_CONFIG_H
 #define MY_CONFIG_H
 
+#include <stdint.h>
+
+
 // ============================================================================
-// ENVIRONMENTAL SENSOR
-// Derived from controller selection.
+// SHADE AUTOMATION V4
+// BUILD CONFIGURATION
+//
+// THIS FILE DESCRIBES THE COMPLETE PHYSICAL DEVICE BEING BUILT.
+//
+// SELECT EXACTLY ONE CONTROLLER.
+// SELECT EXACTLY ONE BUILD TARGET.
+//
+// CHECK THE COMPILER OUTPUT BEFORE FLASHING!
 // ============================================================================
 
-#if defined(SHADE_CONTROLLER_PASSENGER)
 
-  #define SHADE_USES_DHT22
+// ============================================================================
+// CONTROLLER SELECTION
+// ============================================================================
 
-#else
+//#define SHADE_CONTROLLER_DRIVER
+#define SHADE_CONTROLLER_WINDSHIELD
+//#define SHADE_CONTROLLER_PASSENGER
 
-  #define SHADE_USES_DS18B20
+
+#if (defined(SHADE_CONTROLLER_DRIVER) + \
+     defined(SHADE_CONTROLLER_WINDSHIELD) + \
+     defined(SHADE_CONTROLLER_PASSENGER)) != 1
+
+  #error "ERROR: Exactly ONE shade controller must be selected."
 
 #endif
 
 
 // ============================================================================
-// STORAGE
+// BUILD TARGET
 // ============================================================================
 
-#define SYSTEM_USES_LITTLEFS
-// #define SYSTEM_USES_SD_CARD
-
-#define FORMAT_LITTLEFS_IF_FAILED true
+//#define BUILD_PRODUCTION
+#define BUILD_TEST
 
 
-// ============================================================================
-// COMMON HARDWARE
-// ============================================================================
+#if (defined(BUILD_PRODUCTION) + defined(BUILD_TEST)) != 1
 
-// Parking brake
-#define PARKING_BRAKE_INPUT_PIN        35
-#define PARKING_BRAKE_ON_STATE          0
-#define PARKING_BRAKE_OFF_STATE         1
-
-// TB6612FNG
-#define TB6612FNG_STBY_PIN              4
-#define NIGHT_SHADE_PWM_PIN            16
-#define DAY_SHADE_PWM_PIN              17
-
-
-// ============================================================================
-// CONTROLLER-SPECIFIC SHADE HARDWARE
-// ============================================================================
-
-#if defined(SHADE_CONTROLLER_PASSENGER)
-
-  // Physical shade switches
-  #define NIGHT_SHADE_UP_INPUT_PIN       25
-  #define NIGHT_SHADE_DOWN_INPUT_PIN     26
-  #define DAY_SHADE_UP_INPUT_PIN         32
-  #define DAY_SHADE_DOWN_INPUT_PIN       18
-
-  // Motor direction control
-  #define NIGHT_SHADE_UP_OUTPUT_PIN       2
-  #define NIGHT_SHADE_DOWN_OUTPUT_PIN    27
-  #define DAY_SHADE_UP_OUTPUT_PIN        19
-  #define DAY_SHADE_DOWN_OUTPUT_PIN      21
-
-#else
-
-  // Physical shade switches
-  #define NIGHT_SHADE_UP_INPUT_PIN       25
-  #define NIGHT_SHADE_DOWN_INPUT_PIN     26
-  #define DAY_SHADE_UP_INPUT_PIN         32
-  #define DAY_SHADE_DOWN_INPUT_PIN       34
-
-  // Motor direction control
-  #define NIGHT_SHADE_UP_OUTPUT_PIN      33
-  #define NIGHT_SHADE_DOWN_OUTPUT_PIN    27
-  #define DAY_SHADE_UP_OUTPUT_PIN        22
-  #define DAY_SHADE_DOWN_OUTPUT_PIN      21
+  #error "ERROR: Exactly ONE build target must be selected."
 
 #endif
 
 
 // ============================================================================
-// TEMPERATURE SENSOR HARDWARE
+// BUILD IDENTIFICATION
 // ============================================================================
 
-#if defined(SHADE_USES_DS18B20)
+#if defined(SHADE_CONTROLLER_DRIVER)
 
+  #define CONTROLLER_NAME "DRIVER SHADE CONTROLLER"
+
+#elif defined(SHADE_CONTROLLER_WINDSHIELD)
+
+  #define CONTROLLER_NAME "WINDSHIELD SHADE CONTROLLER"
+
+#elif defined(SHADE_CONTROLLER_PASSENGER)
+
+  #define CONTROLLER_NAME "PASSENGER SHADE CONTROLLER"
+
+#endif
+
+
+#if defined(BUILD_PRODUCTION)
+
+  #define BUILD_TARGET_NAME "PRODUCTION"
+
+#elif defined(BUILD_TEST)
+
+  #define BUILD_TARGET_NAME "TEST"
+
+#endif
+
+
+// ============================================================================
+// BUILD WARNING
+// ============================================================================
+
+#pragma message( \
+  "\n************************************************************\n" \
+  "***             SHADE AUTOMATION V4 BUILD                ***\n" \
+  "***                                                      ***\n" \
+  "*** CONTROLLER: " CONTROLLER_NAME "\n" \
+  "*** BUILD:      " BUILD_TARGET_NAME "\n" \
+  "***                                                      ***\n" \
+  "*** VERIFY THIS BEFORE FLASHING THE CONTROLLER!          ***\n" \
+  "************************************************************" \
+)
+
+
+// ============================================================================
+// WINDshield CONTROLLER
+//
+// Complete hardware profile for this physical controller.
+// Values are derived from the current production controller.
+//
+// Do not assume another controller has the same hardware simply because
+// a value happens to be identical.
+// ============================================================================
+
+#if defined(SHADE_CONTROLLER_WINDSHIELD)
+  #define SYSTEM_USES_LITTLEFS                                                // Storage
+  #define FORMAT_LITTLEFS_IF_FAILED true
+
+  #define PK_BK_INPUT_PIN               35                                   // Parking brake
+  #define PK_BK_ON                       0
+  #define PK_BK_OFF                      1
+  #define SHADE_USES_DS18B20                                                  // Temperature sensor
   #define DS18B20_DATA_PIN               13
 
-#elif defined(SHADE_USES_DHT22)
+  #define TB6612FNG_STBY_PIN              4                                   // TB6612FNG
+  #define NIGHT_SHADE_PWM_PIN            16
+  #define DAY_SHADE_PWM_PIN              17
 
-  #define DHT22_DATA_PIN                 33
+  #define NIGHT_SHADE_UP_INPUT_PIN       25                                   // Night shade switches
+  #define NIGHT_SHADE_DOWN_INPUT_PIN     26
 
-#endif
+  #define DAY_SHADE_UP_INPUT_PIN         32                                    // Day shade switches
+  #define DAY_SHADE_DOWN_INPUT_PIN       34
 
-#endif
+
+  #define NIGHT_SHADE_UP_OUTPUT_PIN      33                                    // Night shade motor outputs
+  #define NIGHT_SHADE_DOWN_OUTPUT_PIN    27
+
+  #define DAY_SHADE_UP_OUTPUT_PIN        22                                    // Day shade motor outputs
+  #define DAY_SHADE_DOWN_OUTPUT_PIN      21
+
+#endif  // SHADE_CONTROLLER_WINDSHIELD
+
+
+#endif  // MY_CONFIG_H
