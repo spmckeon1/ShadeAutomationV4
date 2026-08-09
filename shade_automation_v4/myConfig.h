@@ -1,5 +1,4 @@
-#ifndef MY_CONFIG_H
-#define MY_CONFIG_H
+#pragma once
 
 #include <stdint.h>
 
@@ -8,12 +7,12 @@
 // SHADE AUTOMATION V4
 // BUILD CONFIGURATION
 //
-// THIS FILE DESCRIBES THE COMPLETE PHYSICAL DEVICE BEING BUILT.
+// This file describes the complete physical device being built.
 //
-// SELECT EXACTLY ONE CONTROLLER.
-// SELECT EXACTLY ONE BUILD TARGET.
+// Select exactly one controller.
+// Select exactly one build target.
 //
-// CHECK THE COMPILER OUTPUT BEFORE FLASHING!
+// Check the compiler output before flashing!
 // ============================================================================
 
 
@@ -26,12 +25,8 @@
 //#define SHADE_CONTROLLER_PASSENGER
 
 
-#if (defined(SHADE_CONTROLLER_DRIVER) + \
-     defined(SHADE_CONTROLLER_WINDSHIELD) + \
-     defined(SHADE_CONTROLLER_PASSENGER)) != 1
-
+#if (defined(SHADE_CONTROLLER_DRIVER) + defined(SHADE_CONTROLLER_WINDSHIELD) + defined(SHADE_CONTROLLER_PASSENGER)) != 1
   #error "ERROR: Exactly ONE shade controller must be selected."
-
 #endif
 
 
@@ -44,9 +39,7 @@
 
 
 #if (defined(BUILD_PRODUCTION) + defined(BUILD_TEST)) != 1
-
   #error "ERROR: Exactly ONE build target must be selected."
-
 #endif
 
 
@@ -55,30 +48,19 @@
 // ============================================================================
 
 #if defined(SHADE_CONTROLLER_DRIVER)
-
   #define CONTROLLER_NAME "DRIVER SHADE CONTROLLER"
-
 #elif defined(SHADE_CONTROLLER_WINDSHIELD)
-
   #define CONTROLLER_NAME "WINDSHIELD SHADE CONTROLLER"
-
 #elif defined(SHADE_CONTROLLER_PASSENGER)
-
   #define CONTROLLER_NAME "PASSENGER SHADE CONTROLLER"
-
 #endif
 
 
 #if defined(BUILD_PRODUCTION)
-
   #define BUILD_TARGET_NAME "PRODUCTION"
-
 #elif defined(BUILD_TEST)
-
   #define BUILD_TARGET_NAME "TEST"
-
 #endif
-
 
 // ============================================================================
 // BUILD WARNING
@@ -95,45 +77,40 @@
   "************************************************************" \
 )
 
-
 // ============================================================================
-// WINDshield CONTROLLER
+// WINDSHIELD CONTROLLER
 //
 // Complete hardware profile for this physical controller.
-// Values are derived from the current production controller.
 //
-// Do not assume another controller has the same hardware simply because
-// a value happens to be identical.
+// Hardware values are derived from the current production controller.
+// Each controller will have its own complete profile, even when hardware
+// values happen to be identical.
 // ============================================================================
 
 #if defined(SHADE_CONTROLLER_WINDSHIELD)
-  #define SYSTEM_USES_LITTLEFS                                                // Storage
-  #define FORMAT_LITTLEFS_IF_FAILED true
+  constexpr uint8_t PK_BK_INPUT_PIN             = 35;   // Parking brake
+  constexpr uint8_t PK_BK_ON                    =  0;
+  constexpr uint8_t PK_BK_OFF                   =  1;
 
-  #define PK_BK_INPUT_PIN               35                                   // Parking brake
-  #define PK_BK_ON                       0
-  #define PK_BK_OFF                      1
-  #define SHADE_USES_DS18B20                                                  // Temperature sensor
-  #define DS18B20_DATA_PIN               13
+  #define SHADE_USES_DS18B20                            // Temperature sensor
+  constexpr uint8_t DS18B20_DATA_PIN            = 13;
 
-  #define TB6612FNG_STBY_PIN              4                                   // TB6612FNG
-  #define NIGHT_SHADE_PWM_PIN            16
-  #define DAY_SHADE_PWM_PIN              17
+  constexpr uint8_t TB6612FNG_STBY_PIN          =  4;   // TB6612FNG
+  constexpr uint8_t NIGHT_SHADE_PWM_PIN         = 16;
+  constexpr uint8_t DAY_SHADE_PWM_PIN           = 17;
 
-  #define NIGHT_SHADE_UP_INPUT_PIN       25                                   // Night shade switches
-  #define NIGHT_SHADE_DOWN_INPUT_PIN     26
+  constexpr uint8_t NIGHT_SHADE_UP_INPUT_PIN    = 25;   // Night shade switches
+  constexpr uint8_t NIGHT_SHADE_DOWN_INPUT_PIN  = 26;
 
-  #define DAY_SHADE_UP_INPUT_PIN         32                                    // Day shade switches
-  #define DAY_SHADE_DOWN_INPUT_PIN       34
+  constexpr uint8_t DAY_SHADE_UP_INPUT_PIN      = 32;   // Day shade switches
+  constexpr uint8_t DAY_SHADE_DOWN_INPUT_PIN    = 34;
 
 
-  #define NIGHT_SHADE_UP_OUTPUT_PIN      33                                    // Night shade motor outputs
-  #define NIGHT_SHADE_DOWN_OUTPUT_PIN    27
+  constexpr uint8_t NIGHT_SHADE_UP_OUTPUT_PIN   = 33;   // Night shade motor outputs
+  constexpr uint8_t NIGHT_SHADE_DOWN_OUTPUT_PIN = 27;
 
-  #define DAY_SHADE_UP_OUTPUT_PIN        22                                    // Day shade motor outputs
-  #define DAY_SHADE_DOWN_OUTPUT_PIN      21
+  constexpr uint8_t DAY_SHADE_UP_OUTPUT_PIN     = 22;   // Day shade motor outputs
+  constexpr uint8_t DAY_SHADE_DOWN_OUTPUT_PIN   = 21;
 
 #endif  // SHADE_CONTROLLER_WINDSHIELD
 
-
-#endif  // MY_CONFIG_H
