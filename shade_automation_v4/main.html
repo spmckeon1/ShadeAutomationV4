@@ -1,0 +1,674 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta name='viewport' content='width=device-width, initial-scale=1.0'/>
+  <meta charset='utf-8'>
+  <title>PG_TITLE</title>
+  <style>
+    body {
+      font-size:120%;
+    }
+    #Header {
+      font-size:200%;
+      display: table;
+      width: 300px;
+      margin: auto;
+      10px;
+      text-align:center;
+    }
+    #main {
+      line-height:10%;
+      display: table;
+      width: 300px;
+      margin: auto;
+      padding: 0px 0px 0px 0px;
+      border: 3px solid blue;
+      border-radius: 10px;
+      text-align:center;
+    }
+    #main2 {
+      line-height:10%;
+      display: table;
+      width: 300px;
+      margin: auto;
+      padding: 10px 10px 10px 10px;
+      border: 3px solid blue;
+      border-radius: 10px;
+      text-align:center;
+    }
+    #main3 {
+      line-height:10%;
+     display: table;
+     width: 300px;
+     margin: auto;
+     padding: 10px 10px 10px 10px;
+     border: 3px solid blue;
+     border-radius: 10px;
+     text-align:center;
+}
+    #main4 {
+      line-height:10%;
+      display: table;
+      width: 300px;
+      margin: auto;
+      padding: 10px 10px 10px 10px;
+      border-radius: 10px;
+      text-align:center;
+    }
+    #NSStatus {
+      width:300px;
+      height:40px;
+      font-size: 110%;
+      line-height:20%;font-size:80%;
+    }
+    #DSStatus {
+      width:300px;
+      height:40px;
+      font-size:110%;
+      line-height:20%;
+      font-size:80%;
+    }
+    #BTN_LED {
+      width:200px;
+      height:40px;
+      font-size: 110%;
+    }
+    p {
+      font-size: 75%;
+    }
+    .button {
+      border-radius: 8px;
+    }
+    .text-center {
+      text-align:
+      center;
+    }
+
+    .dropbtn {
+      background-color: #04AA6D;
+      color: white; padding: 16px;
+      font-size: 16px;
+      border: none;
+    }
+    .dropdown {
+      position: relative;
+      display: inline-block;
+      width: 400px
+    }
+    .dropdown-content {
+      display: none;
+      position: absolute;
+      background-color: #f1f1f1;
+      min-width: 160px;
+      box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+      z-index: 1;
+    }
+    .dropdown-content a {
+      color: black;
+      padding: 12px 16px;
+      text-decoration: none;
+      display: block;
+    }
+    .dropdown-content a:hover {
+      background-color: #ddd;
+    }
+    .dropdown:hover .dropdown-content {
+      display: block;
+    }
+    .dropdown:hover .dropbtn {
+      background-color: #3e8e41;
+    }
+    div.hidden {
+      display: none
+    }
+    div.absolute {
+      position: absolute;
+      text-align: right;
+      top: 10px;
+      right: 10px;
+      width: 150px;
+      height: 20px;
+      border: 3px solid white;
+    }
+    .timeN_temp {
+      font: 12px Arial, sans-serif;
+    }
+</style>
+
+</head>
+  <body>
+    <div class="dropdown">
+      <button class="dropbtn">Menu</button>
+      <div class="dropdown-content">
+        <a id="mAbout"          href="#" onclick="goToPage(0);return false;">About</a>
+        <a id="mDebug"          href="#" onclick="goToPage(1);return false;")>Debug Info </a>
+        <a id="mFirmwareUpdate" href="#" onclick="goToPage(2);return false;")>Update firmware</a>
+        <a id="mInitSetup"      href="#" onclick="goToPage(3);return false;")>Initial setup</a>
+        <a id="mReboot"         href="#" onclick="reboot();return false;")>Reboot server</a>
+      </div>
+    </div>
+    <div class='hidden' id='rebooting' style='color:red;'>
+      <h1>Fresh tank auto filling controller server is now rebooting.  One moment please...
+      <b id='dot'>.&nbsp</b>
+    </div>
+    <div id=Header>
+      PAGE_HEADER
+    </div>
+    <div id='main'>
+      <h3>Night shade control</h3>
+      <div id='content'>
+        <h3 id='NSU'> Night Shade Up <button id='NightShadeUp' class="button" onclick="nightShadeUp_UP()" onmousedown="mDown(this)" onmouseup="mUp(this)" onmouseover="mOver(this)" onmouseout="mOut(this)" >&#8593;</button>
+        <h5><span id='rd'>Night shade stopped</span>:&nbsp;<span id='nightPcentDown'></span>%down</h5>
+        <h3>Night shade down <button id='NightShadeDown' class="button" onclick="nightShadeDown()" onmousedown="mDown(this)" onmouseup="mUp(this)" onmouseover="mOver(this)" onmouseout="mOut(this)" >&#8595;</button></h3>
+        </h3>
+      </div>
+    </div>
+
+    <div id='main'>
+      <h3>Day shade control</h3>
+      <div id='content2'>
+        <h3 id='DSU'> Day Shade Up <button id=DayShadeUp class="button" onclick= "dayShadeUp()" onmousedown="mDown(this)" onmouseup="mUp(this)" + onmouseover="mOver(this)" onmouseout="mOut(this)" >&#8593;</button>
+        <h5><span id='DSUrd'>Day shade stopped</span>:&nbsp;<span id='dayPcentDown'></span>%down</h5>
+        <h3>Day shade down <button id='DayShadeDown' class="button" onclick="dayShadeDown()" onmousedown="mDown(this)" onmouseup="mUp(this)" onmouseover="mOver(this)" onmouseout="mOut(this)" >&#8595;</button></h3>
+      </h3>
+      </div>
+    </div>
+    <div style='text-align:center;'>
+      <scan id='pkBkOnOff'></scan>
+    </div>
+    <div class='absolute timeN_temp' >
+      <scan id='time'>One moment please</scan>&emsp;<br>
+      <scan id='PCBTemp'>PCB Temp</scan>&emsp;<br>
+    </div>
+
+<script>
+  document.getElementById('rebooting').style.display = 'none'
+  let Socket;                                             // our socket variable
+  let weAreAlive = false;                                 // are we still connected via websockets
+  let missed_heartbeats = 0;                              // how many missed heartbeats in a row
+  let heartbeatMissedPageRefreshes = 0;                   // how many time in a row have we tried to refresh the page after a set of missed heartbeats
+  let uptime = 0;                                         // how long has the server been up in milliseconds
+  let canConnectToServer = true;                          // can we currently connect with the websocket server
+  let heartbeatIntervalID;                                // id of heartbeat send interval
+  let receiveHeartbeatID;                                 // id of heartbeat receive interval
+
+  document.getElementById('rebooting').style.display = 'none';
+  var gateway = `ws://${window.location.hostname}/ws`;
+  window.addEventListener('load', onLoad);
+  let srvIpAddr = "";                                       // what is the servers ip address
+  let myIpAddr = "";                                        // what is this web pages ip address
+  let myUUID = create_UUID();                               // client UUID, stable until the page is refreshed
+  let websocket;
+  let details = navigator.userAgent;
+  let regexp = /android|iphone|kindle|ipad/i;
+  let isMobileDevice = regexp.test(details);
+  let reloadTimout = null;
+  let dotDot = null;
+  let requestedAbout = false;
+
+  const nsUpBtn = 0;                                      // shadeBtn array index for nightShadeUpBtn
+  const nsDnBtn = 1;                                      // shadeBtn array index for nightShadeDnBtn
+  const dsUpBtn = 2;                                      // shadeBtn array index for dayShadeUpBtn
+  const dsDnBtn = 3;                                      // shadeBtn array index for dayShadeDnBtn
+  const aboutBtn = 4;                                     // shadeBtn array index for aboutBtn
+  const numOfBtns = 5;                                    // total number of buttons
+  const HEART_BEAT_INTERVAL = 4000;                       // microseconds between heartbeats
+  const HEARTBEAT_MSG = "---ARE_WE_ALIVE--";              // message to send to the server as a hearbeat
+  const HEARTBEAT_RESPONSE_MSG = "--YES_WE_ARE_ALIVE--";  // contents of msg received from the server for heartbeat response
+  const UP_MOVING_ARROW = '&#8673';                       // up button text to display when a shade is moving up
+  const UP_ARROW = '&#8593';                              // up button text to display when a shade is not moving up
+  const DOWN_ARROW = '&#8595';                            // down button text to display when a shade is not moving down
+  const DOWN_MOVING_ARROW = '&#8675';                     // down button text to display when a shade is moving down
+  const NUM_OF_SWITCHES = 4;
+  const debug_heartbeats = 0;
+  const debug_processReceivedCmd = 1;
+  const Gainsboro = "#E0E0E0";                            // button color for defaut background, mOut bkgnd
+  const white = "#FFFFFF";                                // button text color for device running, mOver, mUp
+  const black = "#000000";                                // button text color for default btn, mDn, mOut
+  const SumSky = "#1ec5e5";                               // mDn btn bkgnd color (summer sky)
+  const suvaGray = "#919191"                              // button device running background color
+  const wSmoke = "#f2f2f2";                               // button diasabled backgroumnd color (white smoke)
+  const green = "#00994C";                                // mUp btn bkgnd color (Pigment Green)
+  const whisper = "#e6e6e6";                              // button diasabled text color (Whisper)
+
+  const rgb2hex = (rgb) => `#${rgb.match(/^rgb\((\d+),\s*(\d+),\s*(\d+)\)$/).slice(1).map(n => parseInt(n, 10).toString(16).padStart(2, '0')).join('')}`;
+
+  const ua = window.navigator.userAgent;
+  const iOS = !!ua.match(/iPad/i) || !!ua.match(/iPhone/i);
+  const webkit = !!ua.match(/WebKit/i);
+  const iOSSafari = iOS && webkit && !ua.match(/CriOS/i);
+//  alert("ua = " + ua + "\n" + "iOS = " + iOS + "\n" + "webkit = " + webkit + "\n" + "iOSSafari = " + iOSSafari);
+  console.log("ua = " + ua);
+  console.log("iOS = " + iOS);
+  console.log("webkit = " + webkit);
+  console.log("iOSSafari = " + iOSSafari);
+
+  function goToPage(num) {
+    switch(num) {
+      case 0  : sendText('Need about info');
+                requestedAbout = true;
+                break;
+      case 1  : window.location.assign("http://" + srvIpAddr + "/Debug");
+                break;
+      case 2  : window.location.assign("http://" + srvIpAddr + "/Update");
+                break;
+      case 3  : window.location.assign("http://" + srvIpAddr + "/wifiSetup");
+                break;
+      default : myConsoleLog("In goToPage(num) and an unknown num was received.  Please advise the programmer of this.");
+    }
+  }
+
+  function reboot() {
+    sendText("reboot");
+  }
+
+  function shadeBtn(id, value, status, disabled, bgColor, txtColor)  {          // set the values of the referenced button 'id'
+    this.id = id;
+    this.value = value;
+    this.status = status;
+    this.disabled = disabled;
+    this.bgColor = bgColor;
+    this.txtColor = txtColor;
+  }
+
+  const shadeBtns = [                                                               // create a array of 4 buttons
+    new shadeBtn('NightShadeUp', UP_ARROW, 'stopped', true, Gainsboro, black),
+    new shadeBtn('NightShadeDown', DOWN_ARROW, 'stopped', false, Gainsboro, black),
+    new shadeBtn('DayShadeUp', UP_ARROW, 'stopped', true, Gainsboro, black),
+    new shadeBtn('DayShadeDown', DOWN_ARROW, 'stopped', false, Gainsboro, black)
+   ];
+
+  function drawBtn(theBtn) {                                                    // draw the button 'theBtn'.  theBtn is an ellemnt in the 'shadeBtns' array
+    const theObj = document.getElementById(theBtn.id);                          // get the element 'theBtn' references
+    theObj.innerHTML = theBtn.value ;                                           // and set the otheObj values to theBtn values
+    theObj.disabled = theBtn.disabled;
+    theObj.style.backgroundColor = theBtn.bgColor;
+    theObj.style.color = theBtn.txtColor;
+  }
+
+  function getBtn(id) {                                                         // get the desired 'shadeBtns' array element
+    switch(id)  {
+      case 'NightShadeUp'   : return shadeBtns[nsUpBtn];
+      case 'NightShadeDown' : return shadeBtns[nsDnBtn];
+      case 'DayShadeUp'     : return shadeBtns[dsUpBtn];
+      case 'DayShadeDown'   : return shadeBtns[dsDnBtn];
+      default               : return null;
+    }
+  }
+
+  function init() {                                                             // init the new paqe
+    Socket = new WebSocket('ws://' + window.location.hostname + ':81/');
+    Socket.onmessage = function(event) { processReceivedCommand(event); };
+    heartbeatIntervalID = setInterval(sendHeartbeat, 10000);
+    weAreAlive = true;
+  }
+
+  function sendHeartbeat() {
+    let d = new Date();
+    let MS = d.getMilliseconds();
+    weAreAlive = false;
+    sendText(HEARTBEAT_MSG);
+    if(debug_heartbeats) {
+      console.log("Sent console.log: " + HEARTBEAT_MSG);
+    }
+    receiveHeartbeatID = setInterval(processHeartbeat, 2000, "failure");
+  }
+
+  function doAbout() {
+    sendText("Need about info");                                                // the user has requested the about info so tell the server to send a copy of the about info
+  }
+
+  function processHeartbeat(data) {
+    if (data.indexOf(HEARTBEAT_RESPONSE_MSG) != -1) {
+        missed_heartbeats = 0;                      // reset the counter for missed heartbeats
+        heartbeatMissedPageRefreshes = 0;           // reset the counter for missed heartbeat page refreshes
+        if(debug_heartbeats) {
+          console.log("Received heartbeat reply: " + HEARTBEAT_RESPONSE_MSG);
+        }
+        clearInterval(receiveHeartbeatID);
+        uptime = data.substring(data.indexOf(":") + 1, data.length);
+        return;
+    } else {
+      missed_heartbeats ++;
+      console.log("Failed to receive heartbeat reply from the server." + " Count is:" + missed_heartbeats + " mills() uptime for the server is " + uptime);
+    }
+    if(missed_heartbeats > 3) {
+      heartbeatMissedPageRefreshes ++;
+      window.location.reload(false);
+      console.log("Missed to many heartbeats (" + missed_heartbeats + "). "+ heartbeatMissedPageRefreshes + " attempts have been made to  refresh the page.\n");
+      missed_heartbeats = 0;
+    }
+     if (heartbeatMissedPageRefreshes >= 3)  {
+      document.getElementById('Header').innerHTML = "Lost server connection.  Attempting to re-establish.";
+      clearInterval(heartbeatIntervalID);
+    }
+  }
+
+   function dotDotDot()  {
+    let s = document.getElementById('dot').innerHTML;
+    s += '.&nbsp';
+    document.getElementById('dot').innerHTML = s;
+    myConsoleLog('s = ' + s);
+  }
+
+  function filterOutUnwatedEvents(data)  {
+    if(data.indexOf("Debug:") != -1)  {
+      return false;
+    } else return true;
+  }
+
+  function processReceivedCommand(evt)  {
+    if(!filterOutUnwatedEvents(evt.data))  {                                    // if this is an even not of interest to this window
+      return;                                                                   // just return
+    }
+    s = evt.data;
+    if(s.indexOf('SyslogTail:') != -1) {                                        // if this is a syslog tail message then
+      return;                                                                   // just return, this is of no interest
+    }
+    if(canConnectToServer)  {
+      const cmd = evt.data.substring(15, evt.data.length);
+      if(evt.data.indexOf(HEARTBEAT_RESPONSE_MSG) != -1)  {                     // did we receive a heartbeat msg
+        processHeartbeat(evt.data);
+        return;
+      }
+      if(cmd.indexOf("Update Buttons") != -1)  {                                // if the event data is about updating the button text
+        upDateBtnText(cmd);
+        if(debug_processReceivedCmd)  {
+          console.log(cmd);
+        }
+        return;
+      }
+      if(s.indexOf('aboutData:') != -1)  {                                      // if incomming data is app info
+        if(requestedAbout) {                                                    // if this copy of the page requested this about data
+          alert(s.substring(10));                                               // open an alert showing the data
+          requestedAbout = false;                                               // set requestedAbout back to false.  This keeps this page
+        }                                                                       // from opening the alert when another page requests this
+        return;                                                                 // just in case the string contains other matches
+      }
+      if(s.indexOf('pkBkUpdate:') != -1) {
+        document.getElementById('pkBkOnOff').innerHTML = s.substring(11);       // put the current parking brake status into the element
+      }
+      if(evt.data.indexOf("MSG FOR CONSOLE") != -1) {
+        console.log(evt.data.substring(15, evt.data.length));                   // write it to the console after stripping the header off
+        return;
+      }
+      if(evt.data.indexOf("inSetUp:") != -1) {                                  // incoming app info when the page is initialized
+        const str1 = evt.data.slice(8, evt.data.indexOf("/") - 1);              // cut out part of the info this is part 1 we want
+        const str2 = evt.data.slice(evt.data.lastIndexOf("/")                   // this is part 2
+          + 1, evt.data.length);
+        console.log(str1 + " " +  str2);                                        // write it to the console
+        return;                                                                 // exit the function
+      }
+      if(evt.data.indexOf("15AB45LP Cockpit shade controller") != -1) {         // incoming app info when the page is initialized
+        const str1 = evt.data.slice(0, evt.data.indexOf("/") - 1);              // cut out part of the info this is part 1 we want
+        const str2 = evt.data.slice(evt.data.lastIndexOf("/")                   // this is part 2
+          + 1, evt.data.length);
+        alert(str1 + "\n " + str2);
+        console.log(str1 + "\n " + str2);                                       // write it to the console
+        return;                                                                 // exit the function
+      }
+      if(s.indexOf('NightPercentDown:') != -1) {                                // if 'NightPercentDown:' is in 's'
+          document.getElementById('nightPcentDown').innerHTML = s.substring(17);// put everything in 's' after 'NightPercentDown:' into element id='nightPcentDown'
+          return;
+      }
+      if(s.indexOf('DayPercentDown:') != -1) {                                  // if 'dayPcentDown:' is in 's'
+        document.getElementById('dayPcentDown').innerHTML = s.substring(15);    // put everything in 's' after 'DayPercentDown:' into element id='dayPcentDown'
+        return;
+      }
+      if(evt.data.indexOf("Night") != -1) {                                     // if the event data is about a night shade
+        let x = document.getElementById('rd');                                  // set the shade status message
+        x.innerHTML = "";
+        x.innerHTML = evt.data.substring(0, evt.data.length);
+        if (evt.data ==='Night shade stopped.') {                               // if the data says night shade stopped
+          doShadeIsStopped("Night");
+        }
+        if (evt.data ==='Night shade is going up.') {                           // if the event data is about a Night shade is going up
+          updateBtn(shadeBtns[nsUpBtn], UP_MOVING_ARROW, suvaGray, white, null);
+        }
+        if (evt.data ==='Night shade is going down.') {                         // if the event data is about a Night shade is going down
+          updateBtn(shadeBtns[nsDnBtn],DOWN_MOVING_ARROW,suvaGray,white, null);
+        }
+        return;
+      } else if(evt.data.indexOf("Day") != -1) {                                // if the event data is about a day shade
+        let x = document.getElementById('DSUrd');                               // set the shade status message
+        x.innerHTML = "";
+        x.innerHTML = evt.data.substring(0, evt.data.length - 1);
+        if (evt.data ==='Day shade stopped.') {
+          doShadeIsStopped("Day");
+       }
+        if (evt.data ==='Day shade is going up.') {
+          updateBtn(shadeBtns[dsUpBtn], UP_MOVING_ARROW, suvaGray, white, null);
+        }
+        if (evt.data ==='Day shade is going down.') {
+          updateBtn(shadeBtns[dsDnBtn], DOWN_MOVING_ARROW, suvaGray, white, null);
+        }
+        return;
+      }
+      if(s.indexOf('serverip:') != -1) {                                                // if this is the server ip coming in
+        s = s.substring(9);                                                             // strip 'serverip:' off the string
+        srvIpAddr = s;                                                                  // put the incoming ip address into the srvIpAddr var
+        return;                                                                         // just in case the string contains other matches
+      }
+      if(s.indexOf('clientip:') != -1) {                                                // if ths is this pages ip address coming in
+        s = s.substring(9);                                                             // strip 'clientip' off the string
+        myIpAddr = s;                                                                   // put the incoming ip address into the myIpAddr var
+        return;                                                                         // just in case the string contains other matches
+      }
+      if(s.indexOf('whoAreYou') != -1)  {                                               // if this is asking who you are
+        sendText('iAmAMainPage:' + myUUID);                                             // reply 'iAmAMainPage' and send the pages UUID
+        return;                                                                         // just in case the string contains other match
+      }
+      if(evt.data.indexOf("PCBTEMP:") != -1) {                                            // it is a DHT temp/humidity reading
+        updatePCBTemp(event.data);
+        return;
+      }
+      if(evt.data.indexOf("btn_disable:") != -1)  {                                     // disable btns appropriatly
+        let theMsg = evt.data.substring(12);                                                  // strip btn_disable: off the string
+        updateBtn(getBtnRec(theMsg), null, wSmoke, whisper, true);
+        return;
+      }
+      if(evt.data.indexOf("btn_enable:") != -1)  {                                      // enable btns appropriatly
+        let theMsg = evt.data.substring(11);
+        updateBtn(getBtnRec(theMsg), null, Gainsboro, black, false);
+        return;
+      }
+      if(evt.data.indexOf("newPgTitle:") != -1)  {
+        document.title = evt.data.substring(evt.data.indexOf("newPgTitle:") + 11);
+        return;
+      }
+      if(evt.data.indexOf("newHeader:") != -1)  {
+        document.getElementById("Header").innerHTML = evt.data.substring(evt.data.indexOf("newHeader:") + 10);
+        return;
+      }
+        if(s.indexOf('Reboot in process') != -1)  {                             // if the serer says a server reboot is in process
+        document.getElementById('rebooting').style.display='';                  // make the rebooting message visable
+        document.getElementById('dot').innerHTML = '.&nbsp';                    // put a '.' and a non breaking space into the id 'dot' object
+        reloadTimout = setTimeout("location.reload()", 12000);                  // reload ths page in 12 seconds
+        dotDot = setInterval("dotDotDot()", 1000);                              // put a '.' at the end of the id 'dot' object to let the user know activity is ongoing
+        return;                                                                 // just in case the string contains other matches
+      }
+      if(s.indexOf('PG_TITLE:') != -1) {                                        // if this is about a syslog tail
+        document.title=s.substring(s.indexOf(':')+1,s.length);                  // modify the pages titke
+        return;                                                                 // just in case the string contains other matches
+      }
+      console.log(evt.data);                                                    // just write the evt.data to the web page console.
+      return;
+    }
+  }
+
+  function doShadeIsStopped(theShade) {                                         // update the appropriate 'shadeBtns' array element
+    if(theShade =="Night") {                                                    // if this is a night shades
+      if(shadeBtns[nsUpBtn].disabled) {                                         // if the up button is disabled
+        updateBtn(shadeBtns[nsUpBtn], UP_ARROW, wSmoke, whisper, null);         // set it properties and use the disabled colors
+      } else updateBtn(shadeBtns[nsUpBtn], UP_ARROW, Gainsboro, black, null);   // else set its properties wity the not disabled colors
+      if(shadeBtns[nsDnBtn].disabled) {                                         // if the down button is disabled
+        updateBtn(shadeBtns[nsDnBtn], DOWN_ARROW, wSmoke, whisper, null);       // set it properties and use the disabled colors
+      } else updateBtn(shadeBtns[nsDnBtn], DOWN_ARROW, Gainsboro, black, null); // else set its properties wity the not disabled colors
+    } else {                                                                    // else it must be the day shades
+      if(shadeBtns[dsUpBtn].disabled) {                                         // if the up button is disabled
+        updateBtn(shadeBtns[dsUpBtn], UP_ARROW, wSmoke, whisper, null);         // set it properties and use the disabled colors
+      } else updateBtn(shadeBtns[dsUpBtn], UP_ARROW, Gainsboro, black, null);   // else set its properties wity the not disabled colors
+      if(shadeBtns[dsDnBtn].disabled) {                                         // if the down button is disabled
+        updateBtn(shadeBtns[dsDnBtn], DOWN_ARROW, wSmoke, whisper, null);       // set it properties and use the disabled colors
+      } else updateBtn(shadeBtns[dsDnBtn], DOWN_ARROW, Gainsboro, black, null); // else set its properties wity the not disabled colors
+    }
+  }
+
+  function getBtnRec(btnCmdFromServer)  {                                       // get the appropriate 'shadeBtns' array element record (element)
+    switch(btnCmdFromServer)  {
+      case "nightShadeUp"               : return shadeBtns[nsUpBtn];
+      case 'Night shade is going up.'   : return shadeBtns[nsUpBtn];
+      case "nightShadeDown"             : return shadeBtns[nsDnBtn];
+      case 'Night shade is going down.' : return shadeBtns[nsDnBtn];
+      case "dayShadeUp"                 : return shadeBtns[dsUpBtn];
+      case 'Day shade is going up.'     : return shadeBtns[dsUpBtn];
+      case "dayShadeDown"               : return shadeBtns[dsDnBtn];
+      case 'Day shade is going down.'   : return shadeBtns[dsDnBtn];
+    }
+  }
+
+  function updateBtn(obj, value, bgColor, txtColor, disabled) {                 // update the approprite 'shadeBtns' array element
+    if(obj != null) {
+      if(value != null) obj.value = value;
+      if(bgColor != null) obj.bgColor = bgColor;
+      if(txtColor != null) obj.txtColor = txtColor;
+      if(disabled != null) obj.disabled = disabled;
+      drawBtn(obj);
+    }
+  }
+
+  function updatePCBTemp(s) {
+    const t = new Date();                                                         // get a date object
+    s2 = 'At '+t.toLocaleTimeString();                                            // capture the time of the day
+    document.getElementById('time').innerHTML = s2;                               // put the time of the day into the id='time' element
+    document.getElementById('PCBTemp').innerHTML = 'PCB Temp: ' + s.substring(8); // put the temp into the id='PCBTemp' element
+  }
+
+  function upDateBtnText(cmd) {
+    if(cmd == "Update Buttons Night shade up OFF\n") {
+      document.getElementById('NightShadeUp').innerHTML = UP_ARROW;
+      return;
+    } else if(cmd == "Update Buttons Night shade up ON\n") {
+      document.getElementById('NightShadeUp').innerHTML = UP_MOVING_ARROW;
+      return;
+    }
+    if(cmd =="Update Buttons Night shade down OFF\n") {
+      document.getElementById('NightShadeDown').innerHTML = DOWN_ARROW;
+      return;
+    } else if(cmd =="Update Buttons Night shade down ON\n"){
+      document.getElementById('NightShadeDown').innerHTML = DOWN_MOVING_ARROW;
+      return;
+    }
+    if(cmd == "Update Buttons Day shade up OFF\n") {
+      document.getElementById('DayShadeUp').innerHTML = UP_ARROW;
+      return;
+    } else if(cmd == "Update Buttons Day shade up ON\n") {
+      document.getElementById('DayShadeUp').innerHTML = UP_MOVING_ARROW;
+      return;
+    }
+    if(cmd == "Update Buttons Day shade down OFF\n") {
+      document.getElementById('DayShadeDown').innerHTML = DOWN_ARROW;
+      return;
+    } else if(cmd == "Update Buttons Day shade down ON\n") {
+      document.getElementById('DayShadeDown').innerHTML = DOWN_MOVING_ARROW;
+      return;
+    }
+  }
+
+  function nightShadeUp_UP()  {
+    sendText("Night Shade is going up" );
+  }
+
+  function nightShadeDown()  {
+    sendText("Night Shade is going down");
+  }
+
+  function dayShadeUp()  {
+    sendText("Day Shade is going up" );
+  }
+
+  function dayShadeDown()  {
+    sendText("Day Shade is going down");
+  }
+
+  function sendText(data) {                                                     // send text to the server
+    let status = websocket.readyState;                                          // is the websocket sys up and runnimg
+    if(websocket.readyState != 1)  {                                            // if it is not ready
+      setTimeout(() => {  websocket.send(data); }, 10000);                      // set a 10 second timeout
+    } else websocket.send("main:" + data);                                      // else send the text to the server
+  }
+
+  function mOut(btn) {                                                          // mouse has left the 'btn' rectangle
+    shadeBtn = getBtn(btn.id)
+    let theObj = document.getElementById(btn.id);
+    x = rgb2hex(window.getComputedStyle(btn).backgroundColor);
+    if(x ==  suvaGray) {                                                        // if the device is running do not change the colors
+      return;
+    }
+    updateBtn(shadeBtn, null, Gainsboro, black, null);
+  }
+
+  function mOver(btn) {                                                         // mouse id over the 'btn'
+    shadeBtn = getBtn(btn.id)
+    let theObj = document.getElementById(btn.id);
+    x = rgb2hex(window.getComputedStyle(btn).backgroundColor);
+    if(x ==  suvaGray) {                                                        // if the device is running do not change the colors
+      return;
+    }
+    updateBtn(shadeBtn, null, green, white, null);
+  }
+
+  function mDown(obj) {                                                         // user has clicked on 'obj'
+    if(obj.style.backgroundColor =  suvaGray) return;                           // if the device is running do not change the colors
+    updateBtn(shadeBtn, null, SumSky, white, null);
+  }
+
+  function mUp(obj) {                                                           // mouse up has occured on 'obj'
+    if(obj.style.backgroundColor =  suvaGray) return;                           // if the device is running do not change the colors
+    updateBtn(shadeBtn, null, Gainsboro, white, null);
+  }
+
+  function create_UUID(){                                                                // create a unique identofier for this web page
+    var dt = new Date().getTime();
+    var uuid = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+        var r = (dt + Math.random()*16)%16 | 0;
+        dt = Math.floor(dt/16);
+        return (c=='x' ? r :(r&0x3|0x8)).toString(16);
+    });
+    return uuid;
+  }
+
+  function myConsoleLog(s) {
+    let tzo = new Date().getTimezoneOffset();                                                           // get the timezone offset in minutes
+    let tzoffset = (tzo * 60000);                                                                       // timezone offset in milliseconds
+    let zone = new Date().toLocaleTimeString('en-us',{timeZoneName:'short'}).split(' ')[2];
+    console.log((new Date(Date.now() - tzoffset)).toISOString().slice(0, -1) + '-' + zone +  " " + s);
+  }
+
+  function initWebSocket() {
+    myConsoleLog('Trying to open a WebSocket connection...');
+    websocket = new WebSocket(gateway);
+    websocket.onopen    = onOpen;
+    websocket.onclose   = onClose;
+    websocket.onmessage = processReceivedCommand;                               // <-- add this line
+  }
+
+  function onOpen(event) {
+    myConsoleLog('Connection opened to :' + srvIpAddr);
+  }
+
+  function onClose(event) {
+    myConsoleLog('Connection closed');
+    setTimeout(initWebSocket, 2000);
+  }
+
+  function onLoad(event) {
+//    document.body.style.cursor = "wait";                              // change to the ';wait' cursor
+    document.getElementById('rebooting').style.display = 'none';
+    myConsoleLog("In onLoad(event)");
+    initWebSocket();
+//    btnMouseOver("about");
+  }
+  </script>
+</body>
+</html>
