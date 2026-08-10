@@ -6,14 +6,17 @@
 // Represents one physical shade and owns its movement behavior.
 // ============================================================================
 
-class ShadeOps
-{
+#include <Arduino.h>
+
+class ShadeOps {
 public:
-
     bool startup();
-
     void evtLoop();
 
+private:
+    static void parkingBrakeChanged();
+
+    
 };
 
 extern ShadeOps shadeOps;

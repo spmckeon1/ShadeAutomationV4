@@ -62,6 +62,8 @@
   #define BUILD_TARGET_NAME "TEST"
 #endif
 
+constexpr uint8_t EVENT_MAX_SUBSCRIBERS = 2;
+
 // ============================================================================
 // BUILD WARNING
 // ============================================================================
@@ -88,6 +90,15 @@
 // ============================================================================
 
 #if defined(SHADE_CONTROLLER_WINDSHIELD)
+// Choose EXACTLY ONE active storage medium for your target hardware partition
+#define SYSTEM_USES_LITTLEFS
+// #define SYSTEM_USES_SD_CARD
+
+// ============================================================================
+// SYSTEM LOW-LEVEL CONSTANTS
+// ============================================================================
+#define FORMAT_LITTLEFS_IF_FAILED   true
+
   constexpr uint8_t PK_BK_INPUT_PIN             = 35;   // Parking brake
   constexpr uint8_t PK_BK_ON                    =  0;
   constexpr uint8_t PK_BK_OFF                   =  1;
