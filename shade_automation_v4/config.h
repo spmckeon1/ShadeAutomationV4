@@ -1,7 +1,15 @@
 #pragma once
 
+#include <Arduino.h>
 #include <stdint.h>
 
+#if CONFIG_IDF_TARGET_ESP32
+    constexpr uint8_t DEVICE_IS_RUNNING = 2;
+#elif CONFIG_IDF_TARGET_ESP32C3
+    constexpr uint8_t DEVICE_IS_RUNNING = 8;
+#else
+    #error "Unsupported ESP32 target"
+#endif
 
 // ============================================================================
 // SHADE AUTOMATION V4
@@ -68,16 +76,6 @@ constexpr uint8_t EVENT_MAX_SUBSCRIBERS = 2;
 // BUILD WARNING
 // ============================================================================
 
-#pragma message( \
-  "\n************************************************************\n" \
-  "***             SHADE AUTOMATION V4 BUILD                ***\n" \
-  "***                                                      ***\n" \
-  "*** CONTROLLER: " CONTROLLER_NAME "\n" \
-  "*** BUILD:      " BUILD_TARGET_NAME "\n" \
-  "***                                                      ***\n" \
-  "*** VERIFY THIS BEFORE FLASHING THE CONTROLLER!          ***\n" \
-  "************************************************************" \
-)
 
 // ============================================================================
 // WINDSHIELD CONTROLLER
@@ -97,7 +95,8 @@ constexpr uint8_t EVENT_MAX_SUBSCRIBERS = 2;
 // ============================================================================
 // SYSTEM LOW-LEVEL CONSTANTS
 // ============================================================================
-#define FORMAT_LITTLEFS_IF_FAILED   true
+  #define FORMAT_LITTLEFS_IF_FAILED   true
+  #define SD_EVT_TYPE "WS_SD"
 
   constexpr uint8_t PK_BK_INPUT_PIN             = 35;   // Parking brake
   constexpr uint8_t PK_BK_ON                    =  0;
