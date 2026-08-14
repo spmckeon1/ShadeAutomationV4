@@ -104,6 +104,7 @@ constexpr uint8_t EVENT_MAX_SUBSCRIBERS = 2;
 
   #define SHADE_USES_DS18B20                            // Temperature sensor
   constexpr uint8_t DS18B20_DATA_PIN            = 13;
+  constexpr uint8_t countOfTempSensors          =  1;
 
   constexpr uint8_t TB6612FNG_STBY_PIN          =  4;   // TB6612FNG
   constexpr uint8_t NIGHT_SHADE_PWM_PIN         = 16;

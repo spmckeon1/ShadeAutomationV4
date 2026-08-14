@@ -2,8 +2,8 @@
 #include <Arduino.h>
 #include <ArduinoTrace.h>
 
-#include "ctrlOps.h"
 #include "shadeAutomationV4.h"
+#include "ctrlOps.h"
 #include <ei_appPolicy.h>
 #include <ei_logging.h>
 #include <ei_mqtt.h>
@@ -12,6 +12,27 @@
 ShadeAutomationV4 shadeAuto;
 
 uint8_t sdEvtType;
+
+void ShadeAutomationV4::sendPcbTemp() {
+  int curTemp = ds18b20.getHysteresisTempF(_pcbT.ds18b20Index);
+  DUMP(curTemp);
+  mqtt.mqttPubMsg(PCB_TEMP_TOPIC, QOS0, FORGET, String(curTemp), LN);
+}
+
+/*-----    LOG THE TEMOERATURE SEMSOR AW TEMPERATURE IN ºF   -----*/
+
+void ShadeAutomationV4::logRawPcbTemp() {
+  logInfo(LS, SD_EVT_TYPE, String(ds18b20.getRawTempF(shadeAuto._pcbT.ds18b20Index)));
+}
+
+/*-----    SET THE PCB TEMPERATURE SENSOR UP   -----*/
+
+void ShadeAutomationV4::setupTempSensors() {
+    if(!ds18b20.addSensor(shadeAuto._pcbT))
+      logError(LS, ET::SENSOR, "failed to add the temperature sensor '" + 
+              shadeAuto._pcbT.name + "'. Received error: " + 
+              String(static_cast<int>(shadeAuto._pcbT.result)));
+}
 
 /*-----    EI LIBRARY REQUIRED MSG RECEIVER   -----*/
 
@@ -117,12 +138,12 @@ void ShadeAutomationV4::configureMqtt() {
 /*-----  POPULATE THE appIds STRUCT -----*/
 
 void ShadeAutomationV4::fillAppIDs() {
-  appIDs.appName = "Shade Automation V4";
-  appIDs.sourceId =  "SD_AUTO";
-  appIDs.accessPointName = "ShadeAutomationV4";
-  appIDs.pageTitle = "Shades";
-  appIDs.pageHeader = "Shades";
-  appIDs.uploadPage = "UPLOAD";
+  appIDs.appName = APPNAME;
+  appIDs.sourceId =  APP_SOURCE_ID;
+  appIDs.accessPointName = ACCESS_PT_NAME;
+  appIDs.pageTitle = PG_TITLE;
+  appIDs.pageHeader = PAGE_HEADER;
+  appIDs.uploadPage = UPLOAD_PG;
 }
 
 /*---- PERFORM ALL NEEDED STTARTUP ACTIVITIES ----*/
@@ -130,19 +151,25 @@ void ShadeAutomationV4::fillAppIDs() {
 bool ShadeAutomationV4::startup() {
   fillAppIDs();
   setupHeartBeat();
+  ds18b20.sendStartupData(DS18B20_DATA_PIN, countOfTempSensors);
   eiSystem.enableHeapMonitor(true);
   eiSystem.setHeapMonitorInterval(5);
-
   sdEvtType = logging.registerEventType(SD_EVT_TYPE); 
 
   if(!eiSystem.bootStrap()) DUMP("eiSystem.bootStrap() FAILURE");
   cfgMqttLwtPolicy();
-  if(!eiSystem.setup()) DUMP("eiSystem.setup() FAILURE");
+  ds18b20.sendStartupData(DS18B20_DATA_PIN, countOfTempSensors);
+   if(!eiSystem.setup()) DUMP("eiSystem.setup() FAILURE");
+  shadeAuto.setupTempSensors();
   configureMqtt();
-  
-  registerEiEvtHandelers();
   if(!eiSystem.startup()) DUMP("eiSystem.startup() FAILURE");
 	addAppMQTTSubscriptions();
+  registerEiEvtHandelers();
+  ds18b20.setHysteresis(shadeAuto._pcbT);
+//  ds18b20.setReadInterval(5000);
+   _readSensor = {IntervalType::IT_MINUTE, _gettempInterval, -1};           // init the eventloop read sensore timer
+
+  logging.dividerStr(FN, LN);                                               // end of function, log a seperator
 
   return true;
 }
@@ -153,6 +180,15 @@ bool ShadeAutomationV4::startup() {
 void ShadeAutomationV4::evtLoop() {
   eiSystem.evtLoop();
   ctrlOps.evtLoop();
+//  if(scheduler.isTimeToRun(_readSensor))
+//    doReadTemp();
+  if(_pcbT.rptTempUpdated) {
+    sendPcbTemp();
+    DUMP(ds18b20.getHysteresisTempF(_pcbT.ds18b20Index));
+    _pcbT.rptTempUpdated = false;
+  }
+
+
 }
 
 
