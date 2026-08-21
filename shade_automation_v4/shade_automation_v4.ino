@@ -9,6 +9,8 @@
 #include <ei_mqtt.h>
 #include <ei_system.h>
 
+#include "shadeOps.h"
+
 ShadeAutomationV4 shadeAuto;
 
 uint8_t sdEvtType;
@@ -24,7 +26,7 @@ void ShadeAutomationV4::sendPcbTemp() {
 void ShadeAutomationV4::logRawPcbTemp() {
   logInfo(LS, SD_EVT_TYPE, String(ds18b20.getRawTempF(shadeAuto._pcbT.ds18b20Index)));
 }
-
+ 
 /*-----    SET THE PCB TEMPERATURE SENSOR UP   -----*/
 
 void ShadeAutomationV4::setupTempSensors() {
@@ -36,7 +38,9 @@ void ShadeAutomationV4::setupTempSensors() {
 
 /*-----    EI LIBRARY REQUIRED MSG RECEIVER   -----*/
 
-void appHandleMsg(const JsonDocument& doc, Source source) {
+bool appHandleMsg(const JsonDocument& doc, Source source) {
+
+  return false;
 }
 
 /*-----  WRITE THE BOOT BANNER -----*/
@@ -68,14 +72,23 @@ void appWifiDisconnected() {
                 "Application received WifiDisconnected");
 }
 
-/*-----  ACTIONS TO TAKE ON MQTT CONNECT -----*/
+/*-----  CLASS FUNCTIOM TO HANDLE MQTT CONNECTED ACTIONS -----*/
+
+void ShadeAutomationV4::mqttConnected() {
+  JsonDocument doc;
+  doc["sourceId"] = appIDs.sourceId;
+  String payload;
+  serializeJson(doc, payload);
+//PUT STUFF HERE THAT NEED STO GO TO NODE RED ON CONNECT
+}/*-----  ACTIONS TO TAKE ON MQTT CONNECT -----*/
 
 void appMqttConnected() {
-    logging.msg(__FILE__, FN, LN,
-                T::EVENT,
-                L::INFO,
-                ET::USER,
-                "Application received MqttConnected");
+  shadeAuto.mqttConnected();
+  logging.msg(__FILE__, FN, LN,
+              T::EVENT,
+              L::INFO,
+              ET::USER,
+              "Application received MqttConnected");
 }
 
 /*-----  ACTIONS TO TAKE ON MQTT DISCONNECT -----*/
@@ -146,9 +159,16 @@ void ShadeAutomationV4::fillAppIDs() {
   appIDs.uploadPage = UPLOAD_PG;
 }
 
+/*-----  SETUP MQTT TOPICS -----*/
+
+void ShadeAutomationV4::setupMqttTopics() {
+  // CREATE ANY NEEDED MQTT TICS HERE
+}
+
 /*---- PERFORM ALL NEEDED STTARTUP ACTIVITIES ----*/
 
 bool ShadeAutomationV4::startup() {
+  setupMqttTopics();
   fillAppIDs();
   setupHeartBeat();
   ds18b20.sendStartupData(DS18B20_DATA_PIN, countOfTempSensors);
@@ -158,8 +178,8 @@ bool ShadeAutomationV4::startup() {
 
   if(!eiSystem.bootStrap()) DUMP("eiSystem.bootStrap() FAILURE");
   cfgMqttLwtPolicy();
-  ds18b20.sendStartupData(DS18B20_DATA_PIN, countOfTempSensors);
-   if(!eiSystem.setup()) DUMP("eiSystem.setup() FAILURE");
+  if(!eiSystem.setup()) DUMP("eiSystem.setup() FAILURE");
+
   shadeAuto.setupTempSensors();
   configureMqtt();
   if(!eiSystem.startup()) DUMP("eiSystem.startup() FAILURE");
@@ -168,6 +188,10 @@ bool ShadeAutomationV4::startup() {
   ds18b20.setHysteresis(shadeAuto._pcbT);
 //  ds18b20.setReadInterval(5000);
    _readSensor = {IntervalType::IT_MINUTE, _gettempInterval, -1};           // init the eventloop read sensore timer
+  ctrlOps.setup();
+  shadeOps.setup();
+  ctrlOps.startup();
+  shadeOps.startup();
 
   logging.dividerStr(FN, LN);                                               // end of function, log a seperator
 
@@ -180,10 +204,9 @@ bool ShadeAutomationV4::startup() {
 void ShadeAutomationV4::evtLoop() {
   eiSystem.evtLoop();
   ctrlOps.evtLoop();
-//  if(scheduler.isTimeToRun(_readSensor))
-//    doReadTemp();
-  if(_pcbT.rptTempUpdated) {
-    sendPcbTemp();
+  shadeOps.evtLoop();
+  if(_pcbT.rptTempUpdated) {                                // if a tem sensor update has been posted
+    sendPcbTemp();                                          // send the update
     DUMP(ds18b20.getHysteresisTempF(_pcbT.ds18b20Index));
     _pcbT.rptTempUpdated = false;
   }

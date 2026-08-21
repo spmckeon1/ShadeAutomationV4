@@ -13,6 +13,8 @@
 #include <ei_scheduler.h>
 #include <ei_utilities.h>
 
+ #include "shadeDefs.h"
+
 #pragma message( \
   "\n************************************************************\n" \
   "***             SHADE AUTOMATION V4 BUILD                ***\n" \
@@ -42,6 +44,20 @@
 #endif
 #define UPLOAD_PG "UPLOAD"                                          // page type is 'upload'
 
+#ifdef WINDSHIELD_SHADES
+  constexpr uint8_t DS18B20_DATA_PIN            = 13;
+  constexpr uint8_t countOfTempSensors          =  1;
+  constexpr uint8_t ONE_WIRE_BUS = 								13;		// ESP32 pin connected to the DS18B20 data wire
+ // constexpr uint8_t SD_CSPIN = 										 5;		// cs pin on the SD disk - NOT CURRENTLY I USE
+
+#elif defined DRIVER_SHADES
+
+#elif defined PASSENGER_SHADES
+
+#else 
+	#error "A shade controller must be defined.  Please do this in the 'shadeDefs.h' file befor before contnuing."
+#endif
+
 constexpr uint8_t RES_NINE   = 9;
 constexpr uint8_t RES_TEN    = 10;
 constexpr uint8_t RES_ELEVEN = 11;
@@ -55,6 +71,8 @@ public:
 
   bool startup();
   void evtLoop();
+  void mqttConnected();
+  
  
 private:
 
@@ -72,6 +90,7 @@ private:
   void setupTempSensors();
   void logRawPcbTemp();
   void sendPcbTemp();
+  void setupMqttTopics();
 
 };
 
@@ -82,7 +101,7 @@ extern void appWifiConnected();
 extern void appWifiDisconnected();
 extern void appMqttConnected() ;
 extern void appMqttDisconnected();
-extern  void appHandleMsg(const JsonDocument& doc, Source source);
+extern bool appHandleMsg(const JsonDocument& doc, Source source);
 
 
 

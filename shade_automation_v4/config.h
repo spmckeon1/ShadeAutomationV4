@@ -97,14 +97,13 @@ constexpr uint8_t EVENT_MAX_SUBSCRIBERS = 2;
 // ============================================================================
   #define FORMAT_LITTLEFS_IF_FAILED   true
   #define SD_EVT_TYPE "WS_SD"
+  #define SHADE_USES_DS18B20                            // Temperature sensor
 
-  constexpr uint8_t PK_BK_INPUT_PIN             = 35;   // Parking brake
+/*
+  constexpr uint8_t PK_BK_PIN             = 35;   // Parking brake
   constexpr uint8_t PK_BK_ON                    =  0;
   constexpr uint8_t PK_BK_OFF                   =  1;
 
-  #define SHADE_USES_DS18B20                            // Temperature sensor
-  constexpr uint8_t DS18B20_DATA_PIN            = 13;
-  constexpr uint8_t countOfTempSensors          =  1;
 
   constexpr uint8_t TB6612FNG_STBY_PIN          =  4;   // TB6612FNG
   constexpr uint8_t NIGHT_SHADE_PWM_PIN         = 16;
@@ -122,6 +121,6 @@ constexpr uint8_t EVENT_MAX_SUBSCRIBERS = 2;
 
   constexpr uint8_t DAY_SHADE_UP_OUTPUT_PIN     = 22;   // Day shade motor outputs
   constexpr uint8_t DAY_SHADE_DOWN_OUTPUT_PIN   = 21;
-
+*/
 #endif  // SHADE_CONTROLLER_WINDSHIELD
 
