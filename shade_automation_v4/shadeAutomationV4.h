@@ -44,6 +44,7 @@
 #endif
 #define UPLOAD_PG "UPLOAD"                                          // page type is 'upload'
 
+
 #ifdef WINDSHIELD_SHADES
   constexpr uint8_t DS18B20_DATA_PIN            = 13;
   constexpr uint8_t countOfTempSensors          =  1;
@@ -68,11 +69,11 @@ constexpr const char* PCB_TEMP_LOG_TOPIC = "shade/ws/pcb/temp/log";
 
 class ShadeAutomationV4 {
 public:
-
   bool startup();
   void evtLoop();
   void mqttConnected();
   
+  String buildJsonAppMqttMsg(const String& route, const String& command, const JsonObjectConst& data);
  
 private:
 
@@ -101,7 +102,7 @@ extern void appWifiConnected();
 extern void appWifiDisconnected();
 extern void appMqttConnected() ;
 extern void appMqttDisconnected();
-extern bool appHandleMsg(const JsonDocument& doc, Source source);
+extern bool appHandleMsg(const JsonDocument& doc);
 
 
 

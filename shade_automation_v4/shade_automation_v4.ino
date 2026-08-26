@@ -4,7 +4,7 @@
 
 #include "shadeAutomationV4.h"
 #include "ctrlOps.h"
-#include <ei_appPolicy.h>
+#include <ei_appFramework.h>
 #include <ei_logging.h>
 #include <ei_mqtt.h>
 #include <ei_system.h>
@@ -15,10 +15,37 @@ ShadeAutomationV4 shadeAuto;
 
 uint8_t sdEvtType;
 
+/*-----    SEND THE CURRENT PCB TEMPERATURE   -----*/
+
 void ShadeAutomationV4::sendPcbTemp() {
   int curTemp = ds18b20.getHysteresisTempF(_pcbT.ds18b20Index);
-  DUMP(curTemp);
-  mqtt.mqttPubMsg(PCB_TEMP_TOPIC, QOS0, FORGET, String(curTemp), LN);
+  JsonDocument data;
+  data["schema"] = "pcbTemperature.v1";
+  data["temperature"] = curTemp;
+
+  String json = buildJsonAppMqttMsg(
+      String(appIDs.sourceId) + "/to/nr/shadeState",
+      "TEMPERATURE",
+      data.as<JsonObjectConst>());
+
+  mqtt.mqttPubMsg(appIDs.mqttTopic, QOS0, FORGET, json, LN);
+}
+/*-----    WRAP MQTT MSG WITH THE REQUIRED FORMTTING   -----*/
+
+String ShadeAutomationV4::buildJsonAppMqttMsg(const String& route, const String& command, const JsonObjectConst& data) {
+  JsonDocument doc;
+
+  doc["owner"] = "application";
+  doc["route"] = route;
+  doc["command"] = command;
+
+  JsonObject outData = doc["data"].to<JsonObject>();
+  outData.set(data);
+
+  String json;
+  serializeJson(doc, json);
+
+  return json;
 }
 
 /*-----    LOG THE TEMOERATURE SEMSOR AW TEMPERATURE IN ºF   -----*/
@@ -38,9 +65,15 @@ void ShadeAutomationV4::setupTempSensors() {
 
 /*-----    EI LIBRARY REQUIRED MSG RECEIVER   -----*/
 
-bool appHandleMsg(const JsonDocument& doc, Source source) {
+bool appHandleMsg(const JsonDocument& doc) {
+  const char* route = doc["route"] | "";
+  if (strcmp(route, "nr/to/test_ws_sd/shadeOps") == 0) {
+    shadeOps.processMsg(doc);
+    return true;
+  }
 
   return false;
+return false;
 }
 
 /*-----  WRITE THE BOOT BANNER -----*/
@@ -72,7 +105,7 @@ void appWifiDisconnected() {
                 "Application received WifiDisconnected");
 }
 
-/*-----  CLASS FUNCTIOM TO HANDLE MQTT CONNECTED ACTIONS -----*/
+/*-----  CLASS FUNCTION TO HANDLE MQTT CONNECTED ACTIONS -----*/
 
 void ShadeAutomationV4::mqttConnected() {
   JsonDocument doc;
@@ -80,7 +113,9 @@ void ShadeAutomationV4::mqttConnected() {
   String payload;
   serializeJson(doc, payload);
 //PUT STUFF HERE THAT NEED STO GO TO NODE RED ON CONNECT
-}/*-----  ACTIONS TO TAKE ON MQTT CONNECT -----*/
+}
+
+/*-----  ACTIONS TO TAKE ON MQTT CONNECT -----*/
 
 void appMqttConnected() {
   shadeAuto.mqttConnected();
@@ -122,12 +157,11 @@ void ShadeAutomationV4::setupHeartBeat() {
 /*---------------  ON MQTT CONNECT TAKE CARE OF ALL NEEDED MQTT UBSCRIPTIONS---------------*/
 
 void ShadeAutomationV4::addAppMQTTSubscriptions() {
-  const String TO_SERVER_SUB = String("to/server/") + appIDs.sourceId + "/#";       // to/server/SD_AUTO/#
+  const String TO_SERVER_SUB = String("nr/to/") + appIDs.sourceId + "/#";       // nr/to/<sourceId/#
 
   mqtt.setMaxSubCnt(1);
   mqtt.addSubscription("Server",      TO_SERVER_SUB,          2);
 }
-
 
 /*-----  CONFIGURE MqttLwtPolicy  -----*/
 
@@ -157,6 +191,7 @@ void ShadeAutomationV4::fillAppIDs() {
   appIDs.pageTitle = PG_TITLE;
   appIDs.pageHeader = PAGE_HEADER;
   appIDs.uploadPage = UPLOAD_PG;
+  appIDs.mqttTopic = APP_SOURCE_ID "/to/nr/shadeState";
 }
 
 /*-----  SETUP MQTT TOPICS -----*/
@@ -182,8 +217,8 @@ bool ShadeAutomationV4::startup() {
 
   shadeAuto.setupTempSensors();
   configureMqtt();
-  if(!eiSystem.startup()) DUMP("eiSystem.startup() FAILURE");
 	addAppMQTTSubscriptions();
+  if(!eiSystem.startup()) DUMP("eiSystem.startup() FAILURE");
   registerEiEvtHandelers();
   ds18b20.setHysteresis(shadeAuto._pcbT);
 //  ds18b20.setReadInterval(5000);

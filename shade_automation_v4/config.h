@@ -1,3 +1,6 @@
+#ifndef SHADE_AUTOMATION_V4_CONFIG_H
+#define SHADE_AUTOMATION_V4_CONFIG_H
+
 #pragma once
 
 #include <Arduino.h>
@@ -124,3 +127,4 @@ constexpr uint8_t EVENT_MAX_SUBSCRIBERS = 2;
 */
 #endif  // SHADE_CONTROLLER_WINDSHIELD
 
+#endif  // SHADE_AUTOMATION_V4_CONFIG_H

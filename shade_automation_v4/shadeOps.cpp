@@ -1,7 +1,7 @@
 
 #include <ArduinoTrace.h>
 
-#include <ei_appPolicy.h>
+#include <ei_appFramework.h>
 #include <ei_logging.h>
 #include <ei_mqtt.h>
 #include <ei_storage.h>
@@ -13,17 +13,19 @@
 
 ShadeOps shadeOps;
 
-inline constexpr const char SHADE_OPS[] = "SHADE_OPS";
+inline constexpr const char SHADE_OPS[] = "SHADE_OPS"; 
 
 /*---- PERFORM ALL REQUIRED SETUP ACTIONS  ----*/
 
 bool ShadeOps::setup() {
 	shadeOps.initPins();
-  _sdDataTop = String(appIDs.sourceId) + "/to/nr/sd/data";
+  _sdDataTop = appIDs.mqttTopic;
   _dySd.fname = appDirs.appData + "/dySd_sdRunT.json";
   _ntSd.fname = appDirs.appData + "/ntSd_sdRunT.json";
   loadSdRunT(_dySd);
   loadSdRunT(_ntSd);
+  eiEvents.on(EiEvent::MqttConnected, shadeOpsMqttConnected);
+  eiEvents.on(EiEvent::MqttDisconnected, shadeOpsMqttDisconnected);
 	logInfo(LS, SHADE_OPS, "SHADE_OPS setup() has completed");
 	return true;
 }
@@ -41,6 +43,44 @@ bool ShadeOps::evtLoop() {
   checkShades();                  // manage shades currently in motion
   checkExtPtnrState();
 	return true;
+}
+
+/*-----  ACTIONS TO TAKE ON MQTT CONNECT -----*/
+
+void shadeOpsMqttConnected() {
+  shadeOps.mqttConnected();
+  logging.msg(__FILE__, FN, LN, T::EVENT, L::INFO, ET::USER, "ShadeOps received MqttConnected");
+}
+
+/*-----  HANDLE ALL ACTIONS WHEN CONNECTED TO MQTT -----*/
+
+void ShadeOps::mqttConnected() {
+  ExtPtnrState state;
+  getExtPtnrState(state);
+  String json = buildJsonShadeState(state);
+//  DUMP(_sdDataTop);
+//  DUMP(json);
+  if (mqtt.mqttPubMsg(_sdDataTop, QOS0, FORGET, json, LN)) {
+    _lastExtPtnrState = state;
+    _lastExtPtnrState.valid = true;
+  } else {
+    _lastExtPtnrState.valid = false;
+    logError(
+      LS,
+      SHADE_OPS,
+      "Unable to publish shade state after MQTT connection."
+    );
+  }
+}
+
+/*-----  ACTIONS TO TAKE ON MQTT DISCONNECT -----*/
+
+void shadeOpsMqttDisconnected() {
+    logging.msg(__FILE__, FN, LN,
+                T::EVENT,
+                L::INFO,
+                ET::USER,
+                "ShadeOps received MqttDisconnected");
 }
 
 /*---- CHECK THE SHADES FOR NEEDED ACTIONS  ----*/
@@ -169,34 +209,14 @@ void ShadeOps::doShadeSwStateChg(Shade& shade) {
 
   // UP switch closed
   if (shade.upSwitchPtr->current && !shade.upSwitchPtr->previous) {
-
-    if (shade.moving) {
-      if (shade.direction == SdDir::UP)
-        turnOff(shade, CmdSrc::PHY_SW);
-      else
-        turnOn(shade, SdDir::UP, CmdSrc::PHY_SW);
-
-      return;
-    }
-
-    turnOn(shade, SdDir::UP, CmdSrc::PHY_SW);
+    executeShadeCommand(shade, SdDir::UP, CmdSrc::PHY_SW);
     return;
   }
 
   // DOWN switch closed
   if (shade.downSwitchPtr->current && !shade.downSwitchPtr->previous) {
-
-    if (shade.moving) {
-      if (shade.direction == SdDir::DOWN)
-        turnOff(shade, CmdSrc::PHY_SW);
-      else
-        turnOn(shade, SdDir::DOWN, CmdSrc::PHY_SW);
-
-      return;
-    }
-
-    turnOn(shade, SdDir::DOWN, CmdSrc::PHY_SW);
-    return;
+    executeShadeCommand(shade, SdDir::DOWN, CmdSrc::PHY_SW);
+    return;  
   }
 
   // A switch was released.
@@ -209,7 +229,19 @@ void ShadeOps::doShadeSwStateChg(Shade& shade) {
   }
 }
 
-/*---- KEEPS THE SHADE RUN TIMES CURRET AND UP TO DATE  ----*/
+/*----  EXECUTE A SHADE COMMAND  ----*/
+
+void ShadeOps::executeShadeCommand(Shade& shade, SdDir dir, CmdSrc cmdSource) {
+  if (shade.moving) {
+    if (shade.direction == dir)
+      turnOff(shade, cmdSource);
+    else
+      turnOn(shade, dir, cmdSource);
+    return;
+  }
+
+  turnOn(shade, dir, cmdSource);
+}/*---- KEEPS THE SHADE RUN TIMES CURRET AND UP TO DATE  ----*/
 
 void ShadeOps::updateSdRunT(Shade& shade) {
   if (!shade.moving)
@@ -307,6 +339,7 @@ void ShadeOps::turnOff(Shade& shade, CmdSrc cmdSource) {
 /*----  TURN THE SHADE MOTOR ON  ----*/
 
 void ShadeOps::turnOn(Shade& shade, SdDir dir, CmdSrc cmdSource) {
+//  TRACE();
   if (!shouldSdBeTurnedOn(shade, dir, cmdSource))
     return;
 
@@ -376,19 +409,23 @@ time_t ShadeOps::getSdPctDown(Shade& shade) {
 
 /*----  BUILD THE MSG CONTETS GOING TO EXTERNAL CONTROL DEVICES ----*/
 
-String ShadeOps::buildExtPtnrStateJson(const ExtPtnrState& state) {
+String ShadeOps::buildJsonShadeState(const ExtPtnrState& state) {
   JsonDocument doc;
+  doc["owner"] = "application";
+  doc["route"] = String(appIDs.sourceId) + "/to/nr/shadeState";
+  doc["command"] = "STATE";
+  JsonObject data = doc["data"].to<JsonObject>();
 
-  doc["schema"] = "shadeState.v1";
-  doc["parkingBrake"] = state.parkingBrake;
+  data["schema"] = "shadeState.v1";
+  data["parkingBrake"] = state.parkingBrake;
 
-  JsonObject day = doc["day"].to<JsonObject>();
+  JsonObject day = data["day"].to<JsonObject>();
   day["percentDown"] = state.dayPercentDown;
   day["direction"] = sdDirToText(state.dayDirection);
   day["upEnabled"] = state.dayUpEnabled;
   day["downEnabled"] = state.dayDownEnabled;
 
-  JsonObject night = doc["night"].to<JsonObject>();
+  JsonObject night = data["night"].to<JsonObject>();
   night["percentDown"] = state.nightPercentDown;
   night["direction"] = sdDirToText(state.nightDirection);
   night["upEnabled"] = state.nightUpEnabled;
@@ -398,8 +435,7 @@ String ShadeOps::buildExtPtnrStateJson(const ExtPtnrState& state) {
   serializeJson(doc, json);
 
   return json;
-}
-/*----  BUILD THE EXTERNAL PARTNERS STATE STRUCT ----*/
+}/*----  BUILD THE EXTERNAL PARTNERS STATE STRUCT ----*/
 
 void ShadeOps::getExtPtnrState(ExtPtnrState& state) {
   state.parkingBrake = ctrlOps.isParkingBrakeOn();
@@ -421,7 +457,7 @@ void ShadeOps::getExtPtnrState(ExtPtnrState& state) {
   state.nightDownEnabled = _ntSd.sdRunT < nightRunTimePtr->dnRunT;
 }
 
-/*----  CHECK AND IS NEEDED SEND THE XETERNAL PARTNER STATE ----*/
+/*----  CHECK AND IF NEEDED SEND THE SHADE STATE ----*/
 
 void ShadeOps::checkExtPtnrState() {
   ExtPtnrState currentState;
@@ -430,8 +466,8 @@ void ShadeOps::checkExtPtnrState() {
 
   if (!_lastExtPtnrState.valid || currentState != _lastExtPtnrState) {
 
-    String json = buildExtPtnrStateJson(currentState);
-    DUMP(_sdDataTop);
+    String json = buildJsonShadeState(currentState);
+//    DUMP(_sdDataTop);
     mqtt.mqttPubMsg(_sdDataTop, QOS0, FORGET, json, LN);
     _lastExtPtnrState = currentState;
     _lastExtPtnrState.valid = true;
@@ -452,12 +488,42 @@ void ShadeOps::saveSdRunT(Shade& shade) {
 /*----  READ A SHADES sdRunT FROM DISK  ----*/
 
 void ShadeOps::loadSdRunT(Shade& shade) {
-  JsonDocument doc;
-  if(!storage.readJsonFile(shade.fname.c_str(), doc, LN)) {
-    logError(LS, ET::MQTT, "Failed to read " + shade.name + "'s sdRunT (" + String(shade.sdRunT) + ") data to disk.");
-  }
-  else shade.sdRunT = doc["sdRunT"];
+    JsonDocument doc;
+    if (!storage.readJsonFile(shade.fname.c_str(), doc, LN)) {
+      logError(LS, ET::MQTT, "Failed to read " + shade.name + "'s sdRunT (" + String(shade.sdRunT) + ") data to disk.");
+    }
+    else {
+      shade.sdRunT = doc["sdRunT"];
+    }
 }
 
+/*----  PROCESS AN INCOMING MESSAGE  ----*/
 
+void ShadeOps::processMsg(const JsonDocument& doc) {
+  const char* command = doc["command"] | "";
+  if (strcmp(command, "EXEC") != 0)
+    return;
+  const char* shade = doc["data"]["shade"] | "";
+  const char* action = doc["data"]["action"] | "";
+  if (strcmp(shade, "day") == 0) {
+    if (strcmp(action, "UP") == 0) {
+      executeShadeCommand(
+          _dySd,
+          SdDir::UP,
+          CmdSrc::NODE_RED_SW);
+      return;
+    }
+    if (strcmp(action, "DOWN") == 0) {
+      executeShadeCommand(
+          _dySd,
+          SdDir::DOWN,
+          CmdSrc::NODE_RED_SW);
+      return;
+    }
+    if (strcmp(action, "STOP") == 0) {
+      turnOff(_dySd, CmdSrc::NODE_RED_SW);
+      return;
+    }
+  }
+}
 

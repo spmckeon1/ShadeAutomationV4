@@ -130,6 +130,8 @@ public:
 	bool setup() ;
 	bool startup();
 	bool evtLoop();
+		void mqttConnected();
+		void processMsg(const JsonDocument& doc);
 
 private:
 	String _sdDataTop;
@@ -151,7 +153,7 @@ private:
 	uint8_t _TB6612StdbyPin = TB6612FNG_STBY_PIN;
 	const int _PWM_FREQ = 5000;                                          // what is the PMW frequency set to on the TB6612FNG
 	const int _PWM_RESOLUTION = 10;                                      // what PMW resolution is the TB6612FNG set 
-	ExtPtnrState _lastExtPtnrState;																				// date=a last sent to our partners (Node-Red/Web)
+	ExtPtnrState _lastExtPtnrState;																				// data last sent to our partners (Node-Red/Web)
 
 	void checkShades();
 	void initPins();
@@ -161,6 +163,7 @@ private:
 //	void checkForAutoTransition(Shade& shade, ShadeSwitch& sw);
 	void processSwitchActions();
 	void doShadeSwStateChg(Shade& shade);
+	void executeShadeCommand(Shade& shade, SdDir dir, CmdSrc cmdSource);
 	void updateSdRunT(Shade& shade);
 	bool isTimeToStop(Shade& shade);
 	bool isTimeLeft(Shade& shade, SdDir dir);
@@ -172,7 +175,7 @@ private:
 	String cmdSrcToText(CmdSrc src);
 	String sdDirToText(SdDir dir);
 	time_t getSdPctDown(Shade& shade);
-	String buildExtPtnrStateJson(const ExtPtnrState& state);
+	String buildJsonShadeState(const ExtPtnrState& state);
 	void getExtPtnrState(ExtPtnrState& state);
 	void checkExtPtnrState();
 	void saveSdRunT(Shade& shade);
@@ -181,3 +184,6 @@ private:
 };
 
 extern ShadeOps shadeOps;
+
+extern void shadeOpsMqttConnected();
+extern void shadeOpsMqttDisconnected();
