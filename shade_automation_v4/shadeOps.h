@@ -26,12 +26,46 @@
   constexpr uint8_t PWM_B_CH =										 1;		// channel number for the TB6612FNG B motor speed
 	constexpr uint8_t SHADE_PWM_MAX = 						 255;		// max speed of the 
 
-	constexpr uint8_t DEBOUNCE_TIME = 							20;		// swoych debounce milliseconds
-	constexpr uint8_t AUTO_MAX_TIME = 						 250;		// max tie before a swich down transitions to not remaining in auto mode
+	constexpr uint8_t DEBOUNCE_TIME = 							20;		// switch debounce milliseconds
+	constexpr uint8_t AUTO_MAX_TIME = 						 250;		// max time before a swich down transitions to not remaining in auto mode
 
 #elif defined DRIVER_SHADES
+  constexpr uint8_t NT_SW_UP_PIN = 								25;		// night shade up switch pin
+  constexpr uint8_t NT_SW_DN_PIN = 								26;		// night shade down switch pin
+  constexpr uint8_t DY_SW_UP_PIN = 								32;		// day shade up switch pin
+  constexpr uint8_t DY_SW_DN_PIN = 								34;		// day shade down switch pin
+  constexpr uint8_t NT_UP_MTR_PIN = 							33;		// night shade up output pin
+  constexpr uint8_t NT_DN_MTR_PIN = 							27;		// night shade down output pin
+  constexpr uint8_t DY_UP_MTR_PIN = 							22;		// day shade up output pin
+  constexpr uint8_t DY_DN_MTR_PIN = 							21;		// day shade down output pin
+  constexpr uint8_t NT_PWMA_PIN = 								16;		// TB6612FNG channel A output pin
+  constexpr uint8_t DY_PWMB_PIN = 								17;		// TB6612FNG channel B output pin
+  constexpr uint8_t TB6612FNG_STBY_PIN = 					 4;		// ESP32 pin connected to the TB6612FNG Stby pin
+  constexpr uint8_t PWM_A_CH = 										 0;		// channel number for the TB6612FNG A motor speed
+  constexpr uint8_t PWM_B_CH =										 1;		// channel number for the TB6612FNG B motor speed
+	constexpr uint8_t SHADE_PWM_MAX = 						 255;		// max speed of the 
+
+	constexpr uint8_t DEBOUNCE_TIME = 							20;		// switc debounce milliseconds
+	constexpr uint8_t AUTO_MAX_TIME = 						 250;		// max time before a swich down transitions to not remaining in auto mode
 
 #elif defined PASSENGER_SHADES
+  constexpr uint8_t NT_SW_UP_PIN = 								25;		// night shade up switch pin
+  constexpr uint8_t NT_SW_DN_PIN = 								26;		// night shade down switch pin
+  constexpr uint8_t DY_SW_UP_PIN = 								32;		// day shade up switch pin
+  constexpr uint8_t DY_SW_DN_PIN = 								18;		// day shade down switch pin
+  constexpr uint8_t NT_UP_MTR_PIN = 							2;		// night shade up output pin
+  constexpr uint8_t NT_DN_MTR_PIN = 							27;		// night shade down output pin
+  constexpr uint8_t DY_UP_MTR_PIN = 							19;		// day shade up output pin
+  constexpr uint8_t DY_DN_MTR_PIN = 							21;		// day shade down output pin
+  constexpr uint8_t NT_PWMA_PIN = 								16;		// TB6612FNG channel A output pin
+  constexpr uint8_t DY_PWMB_PIN = 								17;		// TB6612FNG channel B output pin
+  constexpr uint8_t TB6612FNG_STBY_PIN = 					 4;		// ESP32 pin connected to the TB6612FNG Stby pin
+  constexpr uint8_t PWM_A_CH = 										 0;		// channel number for the TB6612FNG A motor speed
+  constexpr uint8_t PWM_B_CH =										 1;		// channel number for the TB6612FNG B motor speed
+	constexpr uint8_t SHADE_PWM_MAX = 						 255;		// max speed of the 
+
+	constexpr uint8_t DEBOUNCE_TIME = 							20;		// switc debounce milliseconds
+	constexpr uint8_t AUTO_MAX_TIME = 						 250;		// max time before a swich down transitions to not remaining in auto mode
 
 #else 
 	#error "A shade controller must be defined.  Please do this in the 'shadeDefs.h' file befor before contnuing."
@@ -56,6 +90,7 @@ enum class CmdSrc {
   WEB_SW,
   NODE_RED_SW,
   TIMER,
+	PARK_BRAKE,
   COUNT
 };
 
@@ -92,6 +127,7 @@ struct Shade {
   time_t runStartT = 0;									// when the current movement segment began
   time_t sdRunT = 0;										// accumulated/current position of the shade, measured from fully UP
 	time_t runStartSdRunT = 0;						// sdRunT when current movement segment began
+	bool brkRelUp = false;								// used to raise a shade to max down when the parking brake is release
 	bool isAutoOn = false;								// true means the shade will go all the way up or down before stopping, false means it will stop when the command is removed
 	bool moving = false;									// Current shade in motion state
 	SdDir direction = SdDir::NONE;				// if in motion is it going up or down. If not in motion then NONE
@@ -99,22 +135,17 @@ struct Shade {
 
 struct ExtPtnrState {
     bool valid = false;
-
-    bool parkingBrake;
-
     int dayPercentDown;
     SdDir dayDirection;
     bool dayUpEnabled;
     bool dayDownEnabled;
-
     int nightPercentDown;
     SdDir nightDirection;
     bool nightUpEnabled;
     bool nightDownEnabled;
 
     bool operator!=(const ExtPtnrState& other) const {
-        return parkingBrake     != other.parkingBrake
-            || dayPercentDown   != other.dayPercentDown
+        return dayPercentDown   != other.dayPercentDown
             || dayDirection     != other.dayDirection
             || dayUpEnabled     != other.dayUpEnabled
             || dayDownEnabled   != other.dayDownEnabled
@@ -125,15 +156,23 @@ struct ExtPtnrState {
     }
 };
 
+struct ShadeOpsConfig {
+	String cfgFname;
+};
+
 class ShadeOps {
 public:
 	bool setup() ;
 	bool startup();
 	bool evtLoop();
-		void mqttConnected();
-		void processMsg(const JsonDocument& doc);
+	void mqttConnected();
+	void processMsg(const JsonDocument& doc);
+	void parkingBrakeChanged();
+	void sendConfig();
+	bool processCfgUpdate(const JsonDocument& doc);
 
 private:
+	ShadeOpsConfig _config;
 	String _sdDataTop;
 	ShadeSwitch _dySdSwUp = {SwId::DAY_UP, DY_SW_UP_PIN};
 	ShadeSwitch _dySdSwDn = {SwId::DAY_DOWN, DY_SW_DN_PIN};
@@ -151,12 +190,14 @@ private:
 	time_t _sdSwAutoTransT = AUTO_MAX_TIME;
 	uint8_t _debounceT = DEBOUNCE_TIME;
 	uint8_t _TB6612StdbyPin = TB6612FNG_STBY_PIN;
-	const int _PWM_FREQ = 5000;                                          // what is the PMW frequency set to on the TB6612FNG
-	const int _PWM_RESOLUTION = 10;                                      // what PMW resolution is the TB6612FNG set 
-	ExtPtnrState _lastExtPtnrState;																				// data last sent to our partners (Node-Red/Web)
+	const int _PWM_FREQ = 5000;                                       	// what is the PMW frequency set to on the TB6612FNG
+	const int _PWM_RESOLUTION = 10;                                    	// what PMW resolution is the TB6612FNG set 
+	ExtPtnrState _lastExtPtnrState;																			// data last sent to our partners (Node-Red/Web)
 
+	void handleBrakeRelease(Shade& shade);
 	void checkShades();
 	void initPins();
+	bool loadSdVarFromDisk();
 	void ckPhySdSwStates();
 	void ckPhySwState(ShadeSwitch& sw);
 	void checkForAutoTransition(Shade& shade);
@@ -177,13 +218,16 @@ private:
 	time_t getSdPctDown(Shade& shade);
 	String buildJsonShadeState(const ExtPtnrState& state);
 	void getExtPtnrState(ExtPtnrState& state);
-	void checkExtPtnrState();
+	void checkExtPtnrState(bool force);
 	void saveSdRunT(Shade& shade);
 	void loadSdRunT(Shade& shade);
+	bool sendCfgStateToNR(bool state);
+	bool saveConfig();
     
 };
 
 extern ShadeOps shadeOps;
 
+extern void shadeOpsParkingBrakeChanged();
 extern void shadeOpsMqttConnected();
 extern void shadeOpsMqttDisconnected();

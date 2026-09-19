@@ -9,7 +9,10 @@
 #include "shadeOps.h"
 
 #include <ei_utilities.h>
+
+#include "appEvents.h"
 #include "ctrlOps.h"
+#include "shadeDefs.h"
 
 ShadeOps shadeOps;
 
@@ -19,14 +22,19 @@ inline constexpr const char SHADE_OPS[] = "SHADE_OPS";
 
 bool ShadeOps::setup() {
 	shadeOps.initPins();
+  _config.cfgFname = appDirs.appData + "/shadeCfg.json";
   _sdDataTop = appIDs.mqttTopic;
   _dySd.fname = appDirs.appData + "/dySd_sdRunT.json";
   _ntSd.fname = appDirs.appData + "/ntSd_sdRunT.json";
+  if (!loadSdVarFromDisk()) {
+    return false;
+  }
   loadSdRunT(_dySd);
   loadSdRunT(_ntSd);
   eiEvents.on(EiEvent::MqttConnected, shadeOpsMqttConnected);
   eiEvents.on(EiEvent::MqttDisconnected, shadeOpsMqttDisconnected);
 	logInfo(LS, SHADE_OPS, "SHADE_OPS setup() has completed");
+  appEvents.on(AppEvent::ParkingBrakeChanged, shadeOpsParkingBrakeChanged);
 	return true;
 }
 
@@ -41,10 +49,27 @@ bool ShadeOps::evtLoop() {
 	ckPhySdSwStates();						  // check the sates ofthe physical switches
 	processSwitchActions();				  // process and physical switch changes
   checkShades();                  // manage shades currently in motion
-  checkExtPtnrState();
+  checkExtPtnrState(false);
 	return true;
 }
 
+/*-----  DETECTION OF THE PARKING BRAKE CHANDING STATE  -----*/
+
+void shadeOpsParkingBrakeChanged() {
+  shadeOps.parkingBrakeChanged();
+}
+
+/*-----  CALL THE NEEDED ACTIONS ON PARKING BRAKE CHANGED  -----*/
+
+/*-----  CALL THE NEEDED ACTIONS ON PARKING BRAKE CHANGED  -----*/
+
+void ShadeOps::parkingBrakeChanged() {
+  if (!ctrlOps.isParkingBrakeOn()) {    // Corrective action only when the brake is released.
+    handleBrakeRelease(_dySd);          // Check each shade this controller manages.
+    handleBrakeRelease(_ntSd);
+  }
+  checkExtPtnrState(true);              // Publish current state for external partners.
+}
 /*-----  ACTIONS TO TAKE ON MQTT CONNECT -----*/
 
 void shadeOpsMqttConnected() {
@@ -57,9 +82,8 @@ void shadeOpsMqttConnected() {
 void ShadeOps::mqttConnected() {
   ExtPtnrState state;
   getExtPtnrState(state);
+  DUMP(_sdDataTop);
   String json = buildJsonShadeState(state);
-//  DUMP(_sdDataTop);
-//  DUMP(json);
   if (mqtt.mqttPubMsg(_sdDataTop, QOS0, FORGET, json, LN)) {
     _lastExtPtnrState = state;
     _lastExtPtnrState.valid = true;
@@ -97,7 +121,7 @@ void ShadeOps::checkShades() {
     turnOff(_ntSd, _ntSd.cmdSource);
 }
 
-/*---- PINITIALIZE ALL THE SHADE PINS  ----*/
+/*---- ITIALIZE ALL THE SHADE PINS  ----*/
 
 void ShadeOps::initPins() {
   // Physical shade switches
@@ -133,6 +157,68 @@ void ShadeOps::initPins() {
 
 /*---- CHECK THE PHYSCAL SHADE SWITCH STATES  ----*/
 
+bool ShadeOps::loadSdVarFromDisk() {
+  JsonDocument doc;
+
+  // Build the current defaults.
+  JsonObject day = doc["day"].to<JsonObject>();
+
+  JsonObject dayPbOn = day["parkingBrakeOn"].to<JsonObject>();
+  dayPbOn["upRunTime"] = _dyPkBkOn.upRunT;
+  dayPbOn["downRunTime"] = _dyPkBkOn.dnRunT;
+
+  JsonObject dayPbOff = day["parkingBrakeOff"].to<JsonObject>();
+  dayPbOff["upRunTime"] = _dyPkBkOff.upRunT;
+  dayPbOff["downRunTime"] = _dyPkBkOff.dnRunT;
+
+  JsonObject night = doc["night"].to<JsonObject>();
+
+  JsonObject nightPbOn = night["parkingBrakeOn"].to<JsonObject>();
+  nightPbOn["upRunTime"] = _ntPkBkOn.upRunT;
+  nightPbOn["downRunTime"] = _ntPkBkOn.dnRunT;
+
+  JsonObject nightPbOff = night["parkingBrakeOff"].to<JsonObject>();
+  nightPbOff["upRunTime"] = _ntPkBkOff.upRunT;
+  nightPbOff["downRunTime"] = _ntPkBkOff.dnRunT;
+
+  doc["debounceTime"] = _debounceT;
+  doc["autoTransitionTime"] = _sdSwAutoTransT;
+
+  // Create the file if it does not already exist.
+  if (!storage.ensureFileExistsBool(_config.cfgFname, doc, LN)) {
+    return false;
+  }
+
+  // Read the actual configuration from disk.
+  doc.clear();
+
+  if (!storage.readJsonFile(_config.cfgFname.c_str(), doc, LN)) {
+    logError(LS, SHADE_OPS,
+             "Unable to read ShadeOps configuration from disk.");
+    return false;
+  }
+
+  // Apply the configuration.
+  _dyPkBkOn.upRunT  = doc["day"]["parkingBrakeOn"]["upRunTime"];
+  _dyPkBkOn.dnRunT  = doc["day"]["parkingBrakeOn"]["downRunTime"];
+
+  _dyPkBkOff.upRunT = doc["day"]["parkingBrakeOff"]["upRunTime"];
+  _dyPkBkOff.dnRunT = doc["day"]["parkingBrakeOff"]["downRunTime"];
+
+  _ntPkBkOn.upRunT  = doc["night"]["parkingBrakeOn"]["upRunTime"];
+  _ntPkBkOn.dnRunT  = doc["night"]["parkingBrakeOn"]["downRunTime"];
+
+  _ntPkBkOff.upRunT = doc["night"]["parkingBrakeOff"]["upRunTime"];
+  _ntPkBkOff.dnRunT = doc["night"]["parkingBrakeOff"]["downRunTime"];
+
+  _debounceT        = doc["debounceTime"];
+  _sdSwAutoTransT   = doc["autoTransitionTime"];
+
+  return true;
+}
+
+/*---- CHECK THE PHYSCAL SHADE SWITCH STATES  ----*/
+
 void ShadeOps::ckPhySdSwStates() {
 	ckPhySwState(_dySdSwUp);
 	ckPhySwState(_dySdSwDn);
@@ -148,11 +234,10 @@ void ShadeOps::ckPhySwState(ShadeSwitch& sw) {
 
   if (sw.current && !sw.previous)	{																// if the switch has just been closed
     sw.closedAt = millis();
-		DUMP(sw.pin);
 	}
 }
 
-/*---- CHECK SHADE S FOR ISAUTOON TRANSITION  ----*/
+/*---- CHECK SHADES FOR AUTO TRANSITION  ----*/
 
 void ShadeOps::checkForAutoTransition(Shade& shade) {
   if (!shade.isAutoOn)
@@ -167,7 +252,6 @@ void ShadeOps::checkForAutoTransition(Shade& shade) {
 
   if (elapsedT >= _sdSwAutoTransT) {
     shade.isAutoOn = false;
-//    DUMP("Auto transition: " + shade.name);
   }
 }
 
@@ -179,25 +263,21 @@ void ShadeOps::checkForAutoTransition(Shade& shade, ShadeSwitch& sw) {
   }
 }
 */
-/*---- PRROCESS ANY AND ALL CPHYSICAL SWITCH CHANGES  ----*/
+/*---- PRROCESS ANY AND ALL PHYSICAL SWITCH CHANGES  ----*/
 
 void ShadeOps::processSwitchActions() {
   if (_dySdSwUp.current != _dySdSwUp.previous) {
-    DUMP(_dySdSwUp.pin);
     doShadeSwStateChg(_dySd);
   }
   if (_dySdSwDn.current != _dySdSwDn.previous) {
-    DUMP(_dySdSwDn.pin);
     doShadeSwStateChg(_dySd);
   }
   checkForAutoTransition(_dySd);
 
   if (_ntSdSwUp.current != _ntSdSwUp.previous) {
-    DUMP(_ntSdSwUp.pin);
     doShadeSwStateChg(_ntSd);
   }
   if (_ntSdSwDn.current != _ntSdSwDn.previous) {
-    DUMP(_ntSdSwDn.pin);
     doShadeSwStateChg(_ntSd);
   }
   checkForAutoTransition(_ntSd);
@@ -223,8 +303,6 @@ void ShadeOps::doShadeSwStateChg(Shade& shade) {
   if (!shade.upSwitchPtr->current || !shade.downSwitchPtr->current) {
     if (!shade.isAutoOn) {
       turnOff(shade, CmdSrc::PHY_SW);
-      DUMP("Switch released: " + shade.name +
-           "; isAutoOn = " + String(shade.isAutoOn));
     }
   }
 }
@@ -257,16 +335,9 @@ void ShadeOps::updateSdRunT(Shade& shade) {
     // Never allow it to exceed the true full-DOWN position.
     if (shade.sdRunT > shade.pbOnRunTimePtr->dnRunT)
       shade.sdRunT = shade.pbOnRunTimePtr->dnRunT;
-
-
-//      DUMP("Going DOWN - " + shade.name + "; sdRunT = " + String(static_cast<int>(shade.sdRunT)) + "; %down = " + String(static_cast<int>(getSdPctDown(shade))) + "%");
-
-//    DUMP("Going DOWN - " + shade.name + "; " + String(static_cast<int>(shade.sdRunT)));
   }
   else if (shade.direction == SdDir::UP) {
     shade.sdRunT = MATH::suli(shade.runStartSdRunT, elapsedT);
-
-//    DUMP("Going UP - " + shade.name + "; " + String(static_cast<int>(shade.sdRunT)));
   }
 }
 
@@ -276,7 +347,6 @@ bool ShadeOps::isTimeToStop(Shade& shade) {
 
   if (!shade.moving)
     return false;
-
   if (isTimeLeft(shade, shade.direction))
     return false;
 
@@ -293,11 +363,14 @@ bool ShadeOps::isTimeToStop(Shade& shade) {
 bool ShadeOps::isTimeLeft(Shade& shade, SdDir dir) {
   RunTimePtr runTimePtr = ctrlOps.isParkingBrakeOn() ? shade.pbOnRunTimePtr : shade.pbOffRunTimePtr;
 
-  if (dir == SdDir::UP)
-    return shade.sdRunT > 0;
-
-  if (dir == SdDir::DOWN)
+  if (dir == SdDir::UP) {
+   if (shade.brkRelUp)                                     // Brake-release correction: 
+      return shade.sdRunT > shade.pbOffRunTimePtr->dnRunT;  // raise only to the parking-brake-OFF max-down position.
+    return shade.sdRunT > 0;                                // Normal UP operation: continue until fully UP.
+  }
+  if (dir == SdDir::DOWN) {
     return shade.sdRunT < runTimePtr->dnRunT;
+  }
 
   return false;
 }
@@ -321,7 +394,7 @@ bool ShadeOps::shouldSdBeTurnedOn(Shade& shade, SdDir dir, CmdSrc cmdSource) {
 /*----  TURN THE SHADE MOTOR OFF  ----*/
 
 void ShadeOps::turnOff(Shade& shade, CmdSrc cmdSource) {
-	shade.cmdSource = cmdSource;
+  shade.cmdSource = cmdSource;
   if (shade.direction == SdDir::UP)  														// Stop this shade's motor immediately.
     digitalWrite(shade.upMotorPin, LOW);
   else if (shade.direction == SdDir::DOWN)
@@ -329,6 +402,7 @@ void ShadeOps::turnOff(Shade& shade, CmdSrc cmdSource) {
   ledcWrite(shade.pwmChannel, 0);        												// remove PWM drive
 	updateSdRunT(shade);																					// Capture the final position while it was still marked moving.
   shade.moving = false;
+  shade.brkRelUp = false;
   shade.direction = SdDir::NONE;
   if (!anyShadeMoving())																				// If no shade is moving, put the TB6612FNG into standby.
     digitalWrite(_TB6612StdbyPin, LOW);
@@ -339,7 +413,6 @@ void ShadeOps::turnOff(Shade& shade, CmdSrc cmdSource) {
 /*----  TURN THE SHADE MOTOR ON  ----*/
 
 void ShadeOps::turnOn(Shade& shade, SdDir dir, CmdSrc cmdSource) {
-//  TRACE();
   if (!shouldSdBeTurnedOn(shade, dir, cmdSource))
     return;
 
@@ -383,6 +456,7 @@ String ShadeOps::cmdSrcToText(CmdSrc src) {
     case CmdSrc::WEB_SW:      return "WEB_SW";
     case CmdSrc::NODE_RED_SW: return "NODE_RED_SW";
     case CmdSrc::TIMER:       return "TIMER";
+    case CmdSrc::PARK_BRAKE:  return "PARK_BRAKE";
     default: return "UNKNOWN CmdSrc: " + String(static_cast<int>(src));
   }
 }
@@ -410,14 +484,9 @@ time_t ShadeOps::getSdPctDown(Shade& shade) {
 /*----  BUILD THE MSG CONTETS GOING TO EXTERNAL CONTROL DEVICES ----*/
 
 String ShadeOps::buildJsonShadeState(const ExtPtnrState& state) {
-  JsonDocument doc;
-  doc["owner"] = "application";
-  doc["route"] = String(appIDs.sourceId) + "/to/nr/shadeState";
-  doc["command"] = "STATE";
-  JsonObject data = doc["data"].to<JsonObject>();
+  JsonDocument data;
 
   data["schema"] = "shadeState.v1";
-  data["parkingBrake"] = state.parkingBrake;
 
   JsonObject day = data["day"].to<JsonObject>();
   day["percentDown"] = state.dayPercentDown;
@@ -431,43 +500,34 @@ String ShadeOps::buildJsonShadeState(const ExtPtnrState& state) {
   night["upEnabled"] = state.nightUpEnabled;
   night["downEnabled"] = state.nightDownEnabled;
 
-  String json;
-  serializeJson(doc, json);
+  return appFramework.buildJsonAppMqttMsg(String(SD_CMD_ROUTE), "STATE", data.as<JsonObjectConst>());
+}
 
-  return json;
-}/*----  BUILD THE EXTERNAL PARTNERS STATE STRUCT ----*/
+/*----  BUILD THE EXTERNAL PARTNERS STATE STRUCT ----*/
 
 void ShadeOps::getExtPtnrState(ExtPtnrState& state) {
-  state.parkingBrake = ctrlOps.isParkingBrakeOn();
 
-  RunTimePtr dayRunTimePtr =
-    state.parkingBrake ? _dySd.pbOnRunTimePtr : _dySd.pbOffRunTimePtr;
+  RunTimePtr dayRunTimePtr = ctrlOps.isParkingBrakeOn() ? _dySd.pbOnRunTimePtr : _dySd.pbOffRunTimePtr;
+
+  RunTimePtr nightRunTimePtr = ctrlOps.isParkingBrakeOn()  ? _ntSd.pbOnRunTimePtr : _ntSd.pbOffRunTimePtr;
 
   state.dayPercentDown = getSdPctDown(_dySd);
   state.dayDirection = _dySd.direction;
   state.dayUpEnabled = _dySd.sdRunT > 0;
   state.dayDownEnabled = _dySd.sdRunT < dayRunTimePtr->dnRunT;
 
-  RunTimePtr nightRunTimePtr =
-    state.parkingBrake ? _ntSd.pbOnRunTimePtr : _ntSd.pbOffRunTimePtr;
-
   state.nightPercentDown = getSdPctDown(_ntSd);
   state.nightDirection = _ntSd.direction;
   state.nightUpEnabled = _ntSd.sdRunT > 0;
   state.nightDownEnabled = _ntSd.sdRunT < nightRunTimePtr->dnRunT;
 }
-
 /*----  CHECK AND IF NEEDED SEND THE SHADE STATE ----*/
 
-void ShadeOps::checkExtPtnrState() {
+void ShadeOps::checkExtPtnrState(bool force) {
   ExtPtnrState currentState;
-
   getExtPtnrState(currentState);
-
-  if (!_lastExtPtnrState.valid || currentState != _lastExtPtnrState) {
-
-    String json = buildJsonShadeState(currentState);
-//    DUMP(_sdDataTop);
+  if (force || !_lastExtPtnrState.valid || currentState != _lastExtPtnrState) {\
+    String json = buildJsonShadeState(currentState);\
     mqtt.mqttPubMsg(_sdDataTop, QOS0, FORGET, json, LN);
     _lastExtPtnrState = currentState;
     _lastExtPtnrState.valid = true;
@@ -501,29 +561,210 @@ void ShadeOps::loadSdRunT(Shade& shade) {
 
 void ShadeOps::processMsg(const JsonDocument& doc) {
   const char* command = doc["command"] | "";
-  if (strcmp(command, "EXEC") != 0)
+  DUMP(command);
+  if (strcmp(command, "EXEC") == 0) {                 // EXEC — execute a requested shade operation.
+    const char* shade = doc["data"]["shade"] | "";
+    const char* action = doc["data"]["action"] | "";
+    if (strcmp(shade, "day") == 0) {
+      if (strcmp(action, "UP") == 0) {
+        executeShadeCommand(_dySd, SdDir::UP, CmdSrc::NODE_RED_SW);
+        return;
+      }
+      if (strcmp(action, "DOWN") == 0) {
+        executeShadeCommand(_dySd, SdDir::DOWN, CmdSrc::NODE_RED_SW);
+        return;
+      }
+      if (strcmp(action, "STOP") == 0) {
+        turnOff(_dySd, CmdSrc::NODE_RED_SW);
+        return;
+      }
+    }
+    if (strcmp(shade, "night") == 0) {
+      if (strcmp(action, "UP") == 0) {
+        executeShadeCommand(_ntSd, SdDir::UP, CmdSrc::NODE_RED_SW);
+        return;
+      }
+      if (strcmp(action, "DOWN") == 0) {
+        executeShadeCommand(_ntSd, SdDir::DOWN, CmdSrc::NODE_RED_SW);
+        return;
+      }
+      if (strcmp(action, "STOP") == 0) {
+        turnOff(_ntSd, CmdSrc::NODE_RED_SW);
+        return;
+      }
+    }
+    logError(LS, SHADE_OPS, "Unknown shade/action command");
     return;
-  const char* shade = doc["data"]["shade"] | "";
-  const char* action = doc["data"]["action"] | "";
-  if (strcmp(shade, "day") == 0) {
-    if (strcmp(action, "UP") == 0) {
-      executeShadeCommand(
-          _dySd,
-          SdDir::UP,
-          CmdSrc::NODE_RED_SW);
-      return;
-    }
-    if (strcmp(action, "DOWN") == 0) {
-      executeShadeCommand(
-          _dySd,
-          SdDir::DOWN,
-          CmdSrc::NODE_RED_SW);
-      return;
-    }
-    if (strcmp(action, "STOP") == 0) {
-      turnOff(_dySd, CmdSrc::NODE_RED_SW);
-      return;
+  }
+  if (strcmp(command, "REFRESH") == 0) {              // REFRESH — return the current controller state.
+    checkExtPtnrState(true);
+    return;
+  }
+  if (strcmp(command, "REQUEST") == 0) {              // REQUEST — return the current configuration.
+    sendConfig();
+    return;
+  }
+  if (strcmp(command, "CONFIG") == 0) {               // CONFIG — apply validated configuration rows from Node-RED.
+    processCfgUpdate(doc);
+    return;
+  }
+  logError(LS, SHADE_OPS, "Unexpected command received: " + String(command));
+}
+
+
+/*----  EXECUTE THE REQUIRED ACTION WHEN TH EOARKING BRAKE IS RELEASED  ----*/
+
+void ShadeOps::handleBrakeRelease(Shade& shade) {
+  time_t maxDown = shade.pbOffRunTimePtr->dnRunT;
+  if (shade.sdRunT <= maxDown)                                // Shade is already within the new allowed range.
+    return;
+                                                              // Shade is too far down.  Mark this movement as a brake-release correction.
+  shade.brkRelUp = true;
+  if (shade.moving && shade.direction == SdDir::UP)           // Already moving UP: let the new isTimeLeft() rule stop it at maxDown.
+    return;  
+  executeShadeCommand(shade, SdDir::UP, CmdSrc::PARK_BRAKE);  // Stopped or moving DOWN: command it UP.
+}
+
+/*----  ASSEMBLE AND SEND CINFIG DATA TO NODE RED  ----*/
+
+void ShadeOps::sendConfig() {
+  TRACE();
+  JsonDocument data;
+
+  JsonObject day = data["day"].to<JsonObject>();
+  JsonObject dayPbOn = day["parkingBrakeOn"].to<JsonObject>();
+  dayPbOn["upRunTime"] = _dyPkBkOn.upRunT;
+  dayPbOn["downRunTime"] = _dyPkBkOn.dnRunT;
+
+  JsonObject dayPbOff = day["parkingBrakeOff"].to<JsonObject>();
+  dayPbOff["upRunTime"] = _dyPkBkOff.upRunT;
+  dayPbOff["downRunTime"] = _dyPkBkOff.dnRunT;
+
+  JsonObject night = data["night"].to<JsonObject>();
+  JsonObject nightPbOn = night["parkingBrakeOn"].to<JsonObject>();
+  nightPbOn["upRunTime"] = _ntPkBkOn.upRunT;
+  nightPbOn["downRunTime"] = _ntPkBkOn.dnRunT;
+
+  JsonObject nightPbOff = night["parkingBrakeOff"].to<JsonObject>();
+  nightPbOff["upRunTime"] = _ntPkBkOff.upRunT;
+  nightPbOff["downRunTime"] = _ntPkBkOff.dnRunT;
+
+  data["debounceTime"] = _debounceT;
+  data["autoTransitionTime"] = _sdSwAutoTransT;
+
+  String json = appFramework.buildJsonAppMqttMsg(
+    String(SD_CFG_ROUTE),
+    "CONFIG",
+    data.as<JsonObjectConst>()
+  );
+  DUMP(json);
+  DUMP(_sdDataTop);
+  mqtt.mqttPubMsg(String(_sdDataTop) + "/shadeOps/cfg", QOS0, FORGET, json, LN);
+}
+
+/*----  PROCESS A CONFIGURATION UPDATE MSG  ----*/
+
+bool ShadeOps::processCfgUpdate(const JsonDocument& doc) {
+  JsonArrayConst rows = doc["data"].as<JsonArrayConst>();
+
+  if (rows.isNull()) {
+    logError(LS, SHADE_OPS, "CONFIG command did not contain a configuration-row array.");
+    return false;
+  }
+
+  for (JsonObjectConst row : rows) {
+    const uint8_t id = row["id"] | 0;
+    const time_t value = row["value"].as<time_t>();
+
+    switch (id) {
+      case 1:  _dyPkBkOn.upRunT  = value; break;
+      case 2:  _dyPkBkOn.dnRunT  = value; break;
+      case 3:  _dyPkBkOff.upRunT = value; break;
+      case 4:  _dyPkBkOff.dnRunT = value; break;
+      case 5:  _ntPkBkOn.upRunT  = value; break;
+      case 6:  _ntPkBkOn.dnRunT  = value; break;
+      case 7:  _ntPkBkOff.upRunT = value; break;
+      case 8:  _ntPkBkOff.dnRunT = value; break;
+      case 9:  _debounceT        = static_cast<uint8_t>(value); break;
+      case 10: _sdSwAutoTransT   = value; break;
+      default:
+        logError(LS, SHADE_OPS, "CONFIG command contained an unknown row id: " + String(id));
+        return false;
     }
   }
+  logInfo(LS, SHADE_OPS, "Applied configuration: "
+      "dyPkBkOn.upRunT=" + String(_dyPkBkOn.upRunT) +
+      ", dyPkBkOn.dnRunT=" + String(_dyPkBkOn.dnRunT) +
+      ", dyPkBkOff.upRunT=" + String(_dyPkBkOff.upRunT) +
+      ", dyPkBkOff.dnRunT=" + String(_dyPkBkOff.dnRunT) +
+      ", ntPkBkOn.upRunT=" + String(_ntPkBkOn.upRunT) +
+      ", ntPkBkOn.dnRunT=" + String(_ntPkBkOn.dnRunT) +
+      ", ntPkBkOff.upRunT=" + String(_ntPkBkOff.upRunT) +
+      ", ntPkBkOff.dnRunT=" + String(_ntPkBkOff.dnRunT) +
+      ", debounceT=" + String(_debounceT) +
+      ", sdSwAutoTransT=" + String(_sdSwAutoTransT)
+  );
+  if(!saveConfig()) {
+    sendCfgStateToNR(false);
+    return false;
+  }
+  sendCfgStateToNR(true);
+  return true;
+}
+
+/*----  SAVE THE SHADE CONFIG DATA TO DISK  ----*/
+
+bool ShadeOps::sendCfgStateToNR(bool state) {
+  JsonDocument data;
+  data["success"] = state;
+  String json = appFramework.buildJsonAppMqttMsg(
+      String(SD_CFG_STATE_ROUTE),
+      "CONFIG_RESULT",
+      data.as<JsonObjectConst>()
+  );
+  mqtt.mqttPubMsg(
+      String(_sdDataTop) + "/shadeOps/cfg",
+      QOS0,
+      FORGET,
+      json,
+      LN
+  );
+  return true;
+}
+
+/*----  SAVE THE SHADE CONFIG DATA TO DISK  ----*/
+
+bool ShadeOps::saveConfig() {
+  JsonDocument doc;
+
+  JsonObject day = doc["day"].to<JsonObject>();
+
+  JsonObject dayPbOn = day["parkingBrakeOn"].to<JsonObject>();
+  dayPbOn["upRunTime"] = _dyPkBkOn.upRunT;
+  dayPbOn["downRunTime"] = _dyPkBkOn.dnRunT;
+
+  JsonObject dayPbOff = day["parkingBrakeOff"].to<JsonObject>();
+  dayPbOff["upRunTime"] = _dyPkBkOff.upRunT;
+  dayPbOff["downRunTime"] = _dyPkBkOff.dnRunT;
+
+  JsonObject night = doc["night"].to<JsonObject>();
+
+  JsonObject nightPbOn = night["parkingBrakeOn"].to<JsonObject>();
+  nightPbOn["upRunTime"] = _ntPkBkOn.upRunT;
+  nightPbOn["downRunTime"] = _ntPkBkOn.dnRunT;
+
+  JsonObject nightPbOff = night["parkingBrakeOff"].to<JsonObject>();
+  nightPbOff["upRunTime"] = _ntPkBkOff.upRunT;
+  nightPbOff["downRunTime"] = _ntPkBkOff.dnRunT;
+
+  doc["debounceTime"] = _debounceT;
+  doc["autoTransitionTime"] = _sdSwAutoTransT;
+
+  if (storage.writeJsonFile(_config.cfgFname.c_str(), doc, LN) != Storage::WriteResult::Success) {
+    logError(LS, SHADE_OPS, "Unable to write ShadeOps configuration to disk.");
+    return false;
+  }
+
+  return true;
 }
 

@@ -4,7 +4,6 @@
 
 #include <Arduino.h>
 #include <ArduinoJson.h>
-#include <OneWire.h>
 #include <DallasTemperature.h>
 
 
@@ -29,58 +28,55 @@
 
 
 #define COMPILE_DATE __DATE__ " " __TIME__
-#ifdef BUILD_PRODUCTION
-  #define APPNAME "Windshield Shade Controller"                     // the name of this application
-  #define APP_SOURCE_ID "ws_sd"
-  #define PAGE_HEADER "wshdShade"                                   // web page header
-  #define PG_TITLE "wshdShade Ctrl"
-  #define ACCESS_PT_NAME "WS_SD_Controller"                         // access point name
-#elif defined BUILD_TEST
-  #define APPNAME "TEST Windshield Shade Controller"                // the name of this application
-  #define APP_SOURCE_ID "test_ws_sd"
-  #define PAGE_HEADER "TEST wshdShade"                              // web page header
-  #define PG_TITLE "TEST wshdShade Ctrl"
-  #define ACCESS_PT_NAME "TEST_WS_SD_Controller"                    // access point name
-#endif
-#define UPLOAD_PG "UPLOAD"                                          // page type is 'upload'
-
+//#define SD_CMD_ROUTE APP_SOURCE_ID "/to/nr/shadeState"
 
 #ifdef WINDSHIELD_SHADES
   constexpr uint8_t DS18B20_DATA_PIN            = 13;
   constexpr uint8_t countOfTempSensors          =  1;
   constexpr uint8_t ONE_WIRE_BUS = 								13;		// ESP32 pin connected to the DS18B20 data wire
- // constexpr uint8_t SD_CSPIN = 										 5;		// cs pin on the SD disk - NOT CURRENTLY I USE
+  #define SENSOR_NAME        "PCB"
+  #define SENSOR_APP_ID      0
+  #define SENSOR_TEMP_UNIT   TemperatureUnit::Fahrenheit
+  #define SENSOR_ADDRESS     {0x28,0xFF,0x64,0x0E,0x7B,0x5D,0x58,0x9A}
+  #define SENSOR_HYSTERESIS  0.3
+  #define SENSOR_RESOLUTION  RES_NINE
 
 #elif defined DRIVER_SHADES
+  constexpr uint8_t DS18B20_DATA_PIN            = 13;
+  constexpr uint8_t countOfTempSensors          =  1;
+  constexpr uint8_t ONE_WIRE_BUS = 								13;		// ESP32 pin connected to the DS18B20 data wire
+  #define SENSOR_NAME        "PCB"
+  #define SENSOR_APP_ID      0
+  #define SENSOR_TEMP_UNIT   TemperatureUnit::Fahrenheit
+  #define SENSOR_ADDRESS     {0x28,0xA1,0x05,0x0B,0x00,0x00,0x00,0x33}
+  #define SENSOR_HYSTERESIS  0.3
+  #define SENSOR_RESOLUTION  RES_NINE
 
 #elif defined PASSENGER_SHADES
+  #define SENSOR_NAME        "PCB"
+  #define DHTPIN 33                       // Digital pin connected to the DHT sensor
+  #define DHTTYPE DHT22                   // DHT 22 (AM2302)
+  #define SENSOR_HYSTERESIS  0.3
+  #define DHT22_READ_INTERVAL 5000        // ms between sensors reads
 
 #else 
 	#error "A shade controller must be defined.  Please do this in the 'shadeDefs.h' file befor before contnuing."
 #endif
 
-constexpr uint8_t RES_NINE   = 9;
-constexpr uint8_t RES_TEN    = 10;
-constexpr uint8_t RES_ELEVEN = 11;
-constexpr uint8_t RES_TWELVE = 12;
 
-constexpr const char* PCB_TEMP_TOPIC     = "shade/ws/pcb/temp";
-constexpr const char* PCB_TEMP_LOG_TOPIC = "shade/ws/pcb/temp/log";
 
 class ShadeAutomationV4 {
 public:
-  bool startup();
+  bool setup();
   void evtLoop();
   void mqttConnected();
-  
-  String buildJsonAppMqttMsg(const String& route, const String& command, const JsonObjectConst& data);
+  void setupTempSensors();
+  void sendPcbTemp();
+  bool hdlAppInfoRequest();
  
 private:
 
-  EiDs18b20Sensor _pcbT = { "PCB", 0, TemperatureUnit::Fahrenheit, {0x28,0xFF,0x64,0x0E,0x7B,0x5D,0x58,0x9A}, 0.3, RES_NINE};
-
-  RunTime _readSensor;
-  uint8_t _gettempInterval = 1;
+  void logRawPcbTemp();
 
   void registerEiEvtHandelers();
   void setupHeartBeat();
@@ -88,10 +84,8 @@ private:
   void cfgMqttLwtPolicy();
   void configureMqtt();
   void fillAppIDs();
-  void setupTempSensors();
-  void logRawPcbTemp();
-  void sendPcbTemp();
   void setupMqttTopics();
+  void sensorSetup();
 
 };
 
@@ -103,6 +97,8 @@ extern void appWifiDisconnected();
 extern void appMqttConnected() ;
 extern void appMqttDisconnected();
 extern bool appHandleMsg(const JsonDocument& doc);
+extern void onDs18b20SetupComplete();
+extern void appTempChg();
 
 
 

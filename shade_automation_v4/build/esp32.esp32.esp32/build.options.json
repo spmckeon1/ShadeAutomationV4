@@ -1,0 +1,10 @@
+{
+  "additionalFiles": "../../..,../..,../..,../..,../..,../..,../..,../..,../..,../..,../..,../..",
+  "builtInLibrariesFolders": "/Users/stephen/Library/Arduino15/libraries",
+  "compiler.optimization_flags": "-Os",
+  "customBuildProperties": "",
+  "fqbn": "esp32:esp32:esp32:UploadSpeed=921600,CPUFreq=240,FlashFreq=80,FlashMode=qio,FlashSize=4M,PartitionScheme=default,DebugLevel=none,PSRAM=disabled,LoopCore=1,EventsCore=1,EraseFlash=none,JTAGAdapter=default,ZigbeeMode=default",
+  "hardwareFolders": "/Users/stephen/Library/Arduino15/packages/esp32/hardware/esp32/3.3.11,/Users/stephen/Library/Arduino15/packages/esp32/hardware/esp32/3.3.11",
+  "otherLibrariesFolders": "/Users/stephen/Documents/Arduino/libraries",
+  "sketchLocation": "/Users/stephen/Documents/Arduino/Allegro_bus_shade_automation/ShadeAutomationV4/shade_automation_v4"
+}

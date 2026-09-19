@@ -1,18 +1,10 @@
-#ifndef SHADE_AUTOMATION_V4_CONFIG_H
-#define SHADE_AUTOMATION_V4_CONFIG_H
+//#ifndef SHADE_AUTOMATION_V4_CONFIG_H
+//#define SHADE_AUTOMATION_V4_CONFIG_H
 
 #pragma once
 
 #include <Arduino.h>
 #include <stdint.h>
-
-#if CONFIG_IDF_TARGET_ESP32
-    constexpr uint8_t DEVICE_IS_RUNNING = 2;
-#elif CONFIG_IDF_TARGET_ESP32C3
-    constexpr uint8_t DEVICE_IS_RUNNING = 8;
-#else
-    #error "Unsupported ESP32 target"
-#endif
 
 // ============================================================================
 // SHADE AUTOMATION V4
@@ -31,15 +23,13 @@
 // CONTROLLER SELECTION
 // ============================================================================
 
-//#define SHADE_CONTROLLER_DRIVER
-#define SHADE_CONTROLLER_WINDSHIELD
-//#define SHADE_CONTROLLER_PASSENGER
+//#define WINDSHIELD_SHADES
+//#define DRIVER_SHADES
+#define PASSENGER_SHADES
 
-
-#if (defined(SHADE_CONTROLLER_DRIVER) + defined(SHADE_CONTROLLER_WINDSHIELD) + defined(SHADE_CONTROLLER_PASSENGER)) != 1
+#if (defined(WINDSHIELD_SHADES) + defined(DRIVER_SHADES) + defined(PASSENGER_SHADES)) != 1
   #error "ERROR: Exactly ONE shade controller must be selected."
 #endif
-
 
 // ============================================================================
 // BUILD TARGET
@@ -58,14 +48,13 @@
 // BUILD IDENTIFICATION
 // ============================================================================
 
-#if defined(SHADE_CONTROLLER_DRIVER)
+#if defined(DRIVER_SHADES)
   #define CONTROLLER_NAME "DRIVER SHADE CONTROLLER"
-#elif defined(SHADE_CONTROLLER_WINDSHIELD)
+#elif defined(WINDSHIELD_SHADES)
   #define CONTROLLER_NAME "WINDSHIELD SHADE CONTROLLER"
-#elif defined(SHADE_CONTROLLER_PASSENGER)
+#elif defined(PASSENGER_SHADES)
   #define CONTROLLER_NAME "PASSENGER SHADE CONTROLLER"
 #endif
-
 
 #if defined(BUILD_PRODUCTION)
   #define BUILD_TARGET_NAME "PRODUCTION"
@@ -73,58 +62,63 @@
   #define BUILD_TARGET_NAME "TEST"
 #endif
 
-constexpr uint8_t EVENT_MAX_SUBSCRIBERS = 2;
-
 // ============================================================================
-// BUILD WARNING
+// CONTROLLER HARDWARE PROFILE
 // ============================================================================
 
+#if defined(WINDSHIELD_SHADES)
 
 // ============================================================================
 // WINDSHIELD CONTROLLER
-//
-// Complete hardware profile for this physical controller.
-//
-// Hardware values are derived from the current production controller.
-// Each controller will have its own complete profile, even when hardware
-// values happen to be identical.
 // ============================================================================
 
-#if defined(SHADE_CONTROLLER_WINDSHIELD)
-// Choose EXACTLY ONE active storage medium for your target hardware partition
+// Choose EXACTLY ONE active storage medium for this controller.
+
 #define SYSTEM_USES_LITTLEFS
 // #define SYSTEM_USES_SD_CARD
 
+#define FORMAT_LITTLEFS_IF_FAILED   true
+
+#define SENSOR_USES_DS18B20
+
 // ============================================================================
-// SYSTEM LOW-LEVEL CONSTANTS
+
+#elif defined(DRIVER_SHADES)
+
 // ============================================================================
-  #define FORMAT_LITTLEFS_IF_FAILED   true
-  #define SD_EVT_TYPE "WS_SD"
-  #define SHADE_USES_DS18B20                            // Temperature sensor
+// DRIVER WINDOW CONTROLLER
+// ============================================================================
 
-/*
-  constexpr uint8_t PK_BK_PIN             = 35;   // Parking brake
-  constexpr uint8_t PK_BK_ON                    =  0;
-  constexpr uint8_t PK_BK_OFF                   =  1;
+// Choose EXACTLY ONE active storage medium for this controller.
 
+#define SYSTEM_USES_LITTLEFS
+// #define SYSTEM_USES_SD_CARD
 
-  constexpr uint8_t TB6612FNG_STBY_PIN          =  4;   // TB6612FNG
-  constexpr uint8_t NIGHT_SHADE_PWM_PIN         = 16;
-  constexpr uint8_t DAY_SHADE_PWM_PIN           = 17;
+#define FORMAT_LITTLEFS_IF_FAILED   true
 
-  constexpr uint8_t NIGHT_SHADE_UP_INPUT_PIN    = 25;   // Night shade switches
-  constexpr uint8_t NIGHT_SHADE_DOWN_INPUT_PIN  = 26;
+#define SENSOR_USES_DS18B20
 
-  constexpr uint8_t DAY_SHADE_UP_INPUT_PIN      = 32;   // Day shade switches
-  constexpr uint8_t DAY_SHADE_DOWN_INPUT_PIN    = 34;
+// ============================================================================
 
+#elif defined(PASSENGER_SHADES)
 
-  constexpr uint8_t NIGHT_SHADE_UP_OUTPUT_PIN   = 33;   // Night shade motor outputs
-  constexpr uint8_t NIGHT_SHADE_DOWN_OUTPUT_PIN = 27;
+// ============================================================================
+// PASSENGER WINDOW CONTROLLER
+// ============================================================================
 
-  constexpr uint8_t DAY_SHADE_UP_OUTPUT_PIN     = 22;   // Day shade motor outputs
-  constexpr uint8_t DAY_SHADE_DOWN_OUTPUT_PIN   = 21;
-*/
-#endif  // SHADE_CONTROLLER_WINDSHIELD
+// Choose EXACTLY ONE active storage medium for this controller.
 
-#endif  // SHADE_AUTOMATION_V4_CONFIG_H
+#define SYSTEM_USES_LITTLEFS
+// #define SYSTEM_USES_SD_CARD
+
+#define FORMAT_LITTLEFS_IF_FAILED   true
+
+#define SENSOR_USES_DHT
+
+// ============================================================================
+
+#else
+
+  #error "ERROR: No valid shade controller profile selected."
+
+#endif

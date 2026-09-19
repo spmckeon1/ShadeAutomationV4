@@ -11,8 +11,10 @@ constexpr uint8_t PK_BK_OFF                   =  1;
   constexpr uint8_t PK_BK_PIN                 = 35;   // Parking brake
 
 #elif defined DRIVER_SHADES
+  constexpr uint8_t PK_BK_PIN                 = 35;   // Parking brake
 
 #elif defined PASSENGER_SHADES
+  constexpr uint8_t PK_BK_PIN                 = 35;   // Parking brake
 
 #else 
 	#error "A shade controller must be defined.  Please do this in the 'shadeDefs.h' file befor before contnuing."
@@ -27,16 +29,22 @@ public:
   void evtLoop();
 
   bool isParkingBrakeOn() const;
-  float temperature();
+  void sendParkingBrakeState();
+  void mqttConnected();
+  void mqttDisconnected();
+  void processMsg(const JsonDocument& doc);
 
 private:
   bool _pkBkState = false;
   bool _pkBkChanged = false;
 
   bool isPkBkOn();
+  void updateNodeRed();
 
 };
 
 extern CtrlOps ctrlOps;
 extern void parkingBrakeChanged();
+extern void ctrlOpsMqttConnected();
+extern void ctrlOpsMqttDisconnected();
 
